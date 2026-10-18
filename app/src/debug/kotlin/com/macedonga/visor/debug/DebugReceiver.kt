@@ -36,7 +36,8 @@ import kotlinx.coroutines.withTimeoutOrNull
  * recording), LIVE_REPLAY, LIVE_FRAME, BUGREPORT, SETTINGS (--es key), SET (--es key --es value),
  * READ_SETTINGS, MEDIA, IMPORT (--es handle a,b: by handle prefix), ASK (--es q), ONBOARD (--es page --ef t),
  * MCP_PROBE / MCP_ADD (--es url --es name --es auth NONE|TOKEN|HEADER --es secret --es header), MCP_STATUS,
- * MCP_TOOLS (what the model would get), MCP_CALL (--es tool exposed-name --es args json), MCP_REMOVE (--es id).
+ * MCP_TOOLS (what the model would get), MCP_CALL (--es tool exposed-name --es args json), MCP_REMOVE (--es id),
+ * DEMO_PAIR (--ez on false takes it away): a second pair on the home, a black Skyler, never connected or looked at.
  */
 @AndroidEntryPoint
 class DebugReceiver : BroadcastReceiver() {
@@ -53,12 +54,15 @@ class DebugReceiver : BroadcastReceiver() {
     @Inject lateinit var config: com.macedonga.visor.core.media.GlassesConfig
     @Inject lateinit var liveSettings: com.macedonga.visor.core.media.LiveSettingsStore
     @Inject lateinit var mcp: com.macedonga.visor.core.assistant.mcp.McpHub
+    @Inject lateinit var pairs: com.macedonga.visor.pairs.Pairs
+    @Inject lateinit var looks: com.macedonga.visor.stage.Looks
 
     override fun onReceive(context: Context, intent: Intent) {
         val action = intent.action?.substringAfterLast('.').orEmpty()
         Log.i("Visor", "API: $action")
         when (action) {
             "STATUS" -> resultData = status()
+            "DEMO_PAIR" -> resultData = demoPair(intent.getBooleanExtra("on", true))
             "CONNECT" -> resultData = runCatching { GlassesService.start(context); "connecting" }.getOrElse { "could not start the service: $it" }
             "DISCONNECT" -> {
                 GlassesService.stop(context)
@@ -351,6 +355,19 @@ class DebugReceiver : BroadcastReceiver() {
         }
     }
 
+    private fun demoPair(on: Boolean): String {
+        if (!on) {
+            pairs.demo(null, null)
+            looks.demo(DEMO_SERIAL, null, null)
+            return "demo pair gone"
+        }
+        val look = com.macedonga.visor.core.identity.language.GlassesLook("skyler", "Skyler", "shiny_black", "Shiny Black", "clear", "Clear", null)
+        looks.demo(DEMO_SERIAL, look, DEMO_PICTURE)
+        val seen = com.macedonga.visor.home.PairSeen(glasses = 64, case = 88, at = System.currentTimeMillis() - 2 * 3_600_000L, folded = true)
+        pairs.demo(com.macedonga.visor.pairs.KnownPair(DEMO_SERIAL, "00:00:00:00:00:00"), seen)
+        return "demo pair on: swipe the home's stage"
+    }
+
     private fun status(): String {
         val s = connection.state.value
         val b = s.device?.battery
@@ -388,5 +405,9 @@ class DebugReceiver : BroadcastReceiver() {
 
     private companion object {
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+        const val DEMO_SERIAL = "DEMO00SKYLER00"
+        // Meta's own picture of a black Skyler, as its asset service hands it out.
+        const val DEMO_PICTURE = "https://scontent.xx.fbcdn.net/mci_ab/uap/asset_manager/name_revision/?ab_b=e&ab_page=AssetManagerNameAndRevision" +
+            "&ab_entry=RBM2-Skyler-ShinyBlack-Clear-Concord&set=mwa_device_image_assets&revision=1837680503843762&density=3&mode=dark"
     }
 }
