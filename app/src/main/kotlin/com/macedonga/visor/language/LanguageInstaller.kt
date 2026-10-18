@@ -11,6 +11,7 @@ import com.macedonga.visor.core.session.LinkState
 import com.macedonga.visor.core.settings.GlassesSettings
 import com.macedonga.visor.log.EventLog
 import com.macedonga.visor.login.MetaLogin
+import com.macedonga.visor.pairs.pairPrefs
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.File
 import java.io.FileOutputStream
@@ -28,6 +29,9 @@ import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -58,7 +62,9 @@ class LanguageInstaller @Inject constructor(
     private val log: EventLog,
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-    private val prefs = context.getSharedPreferences("languages", Context.MODE_PRIVATE)
+    // Installed on the glasses: each pair has its own.
+    @Volatile
+    private var prefs = pairPrefs(context, "languages", connection.pair.value)
     private val dir = File(context.filesDir, "packs")
 
     private val _work = MutableStateFlow<LanguageWork>(LanguageWork.Idle)
@@ -67,6 +73,15 @@ class LanguageInstaller @Inject constructor(
     /** The languages on the glasses, as far as this phone knows: the built-in one, those installed from here, the one in use. */
     private val _installed = MutableStateFlow(prefs.getStringSet(KEY_INSTALLED, null).orEmpty() + "en_US")
     val installed: StateFlow<Set<String>> = _installed.asStateFlow()
+
+    init {
+        scope.launch {
+            connection.pair.filterNotNull().distinctUntilChanged().drop(1).collect { serial ->
+                prefs = pairPrefs(context, "languages", serial)
+                _installed.value = prefs.getStringSet(KEY_INSTALLED, null).orEmpty() + "en_US"
+            }
+        }
+    }
 
     /** What Meta has, by pack suffix, and why it could not be asked. */
     private val _offers = MutableStateFlow<Map<String, PackOffer>>(emptyMap())

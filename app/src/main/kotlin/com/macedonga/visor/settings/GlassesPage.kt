@@ -31,6 +31,7 @@ import com.macedonga.visor.OnboardingKey
 import com.macedonga.visor.R
 import com.macedonga.visor.connection.GlassesService
 import com.macedonga.visor.connection.LinkKind
+import com.macedonga.visor.home.pairName
 import com.macedonga.visor.core.connection.GlassesConnection
 import com.macedonga.visor.core.connection.GlassesLink
 import com.macedonga.visor.core.connection.GlassesTarget
@@ -63,6 +64,7 @@ class GlassesPageModel @Inject constructor(
     val kind: LinkKind,
     private val store: IdentityStore,
     val looks: Looks,
+    val lastSeen: com.macedonga.visor.home.LastSeen,
 ) : ViewModel() {
     private val _glasses = MutableStateFlow<List<IdentityBundle>>(emptyList())
 
@@ -83,6 +85,7 @@ class GlassesPageModel @Inject constructor(
     fun forget(serial: String) {
         viewModelScope.launch(Dispatchers.IO) {
             store.remove(serial)
+            lastSeen.forget(serial)
             _glasses.value = runCatching { store.all() }.getOrDefault(emptyList())
         }
     }
@@ -95,6 +98,8 @@ fun GlassesPage(open: (NavKey) -> Unit, model: GlassesPageModel = hiltViewModel(
     val glasses by model.connection.state.collectAsStateWithLifecycle()
     val running by model.connection.running.collectAsStateWithLifecycle()
     val bundles by model.glasses.collectAsStateWithLifecycle()
+    val seen by model.lastSeen.seen.collectAsStateWithLifecycle()
+    val looks by model.looks.all.collectAsStateWithLifecycle()
     val login by model.login.status.collectAsStateWithLifecycle()
     val le by model.kind.overLe.collectAsStateWithLifecycle()
     LifecycleResumeEffect(Unit) {
@@ -125,17 +130,17 @@ fun GlassesPage(open: (NavKey) -> Unit, model: GlassesPageModel = hiltViewModel(
         item(key = "power") {
             Row(Modifier.fillMaxWidth().padding(horizontal = SIDE).padding(bottom = 8.dp), horizontalArrangement = Arrangement.spacedBy(36.dp)) {
                 // Away, the last reading the home kept, dimmed.
-                val last = remember { context.getSharedPreferences("home", android.content.Context.MODE_PRIVATE) }
+                val last by model.lastSeen.battery.collectAsStateWithLifecycle()
                 val glassesNow = device?.battery?.percent?.toInt()
                 val caseNow = device?.case?.levelPercent()
                 Readout(
                     stringResource(R.string.glasses_battery),
-                    (glassesNow ?: last.getInt("glasses", -1).takeIf { it >= 0 })?.let { "$it%" },
+                    (glassesNow ?: last?.glasses)?.let { "$it%" },
                     device?.battery?.charging == true, fresh = glassesNow != null,
                 )
                 Readout(
                     stringResource(R.string.glasses_case_label),
-                    (caseNow ?: last.getInt("case", -1).takeIf { it >= 0 })?.let { "$it%" },
+                    (caseNow ?: last?.case)?.let { "$it%" },
                     device?.case?.charging == true, fresh = caseNow != null,
                 )
             }
@@ -201,9 +206,12 @@ fun GlassesPage(open: (NavKey) -> Unit, model: GlassesPageModel = hiltViewModel(
                     },
                     *bundles.filter { it.serial != serial }.map { b ->
                         @Composable {
-                            RowFrame(b.serial, onClick = null, sub = b.glassesAddress) {
+                            val other = seen[b.serial]
+                            RowFrame(
+                                pairName(other, looks[b.serial]), onClick = null,
+                                sub = other?.glasses?.let { g -> other.case?.let { c -> stringResource(R.string.glasses_other_batteries, g, c) } ?: "$g%" },
+                            ) {
                                 ActionPill(stringResource(R.string.glasses_connect), {
-                                    GlassesService.stop(context)
                                     GlassesService.start(context, GlassesTarget(GlassesLink.Bluetooth(b.glassesAddress), b.serial))
                                 }, quiet = true, modifier = Modifier.padding(start = 12.dp))
                             }

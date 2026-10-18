@@ -124,7 +124,6 @@ import com.macedonga.visor.gallery.ProgressRing
 import com.macedonga.visor.gallery.RoundIcon
 import com.macedonga.visor.gallery.placesAllowed
 import com.macedonga.visor.gallery.words
-import com.macedonga.visor.home.LastBattery
 import com.macedonga.visor.home.StatusPill
 import com.macedonga.visor.language.languageOfVoice
 import com.macedonga.visor.media.spanWords
@@ -171,6 +170,7 @@ class SettingsViewModel @Inject constructor(
     val backups: Backups,
     val updates: com.macedonga.visor.update.Updates,
     val features: com.macedonga.visor.features.Features,
+    val lastSeen: com.macedonga.visor.home.LastSeen,
 ) : ViewModel()
 
 /**
@@ -286,11 +286,7 @@ fun SettingsScreen(open: (NavKey) -> Unit, model: SettingsViewModel = hiltViewMo
                 .turnsThePair { host.haptics.tick(0.35f) }
                 .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { open(GlassesKey) },
         ) {
-            val remembered = remember {
-                context.getSharedPreferences("home", android.content.Context.MODE_PRIVATE).let { p ->
-                    p.getInt("glasses", -1).takeIf { it >= 0 }?.let { LastBattery(it, p.getInt("case", -1).takeIf { c -> c >= 0 }, p.getLong("at", 0)) }
-                }
-            }
+            val remembered by model.lastSeen.battery.collectAsStateWithLifecycle()
             StatusPill(
                 glasses, mood, remembered, paired = glasses.target?.let { true }, allowed = true, importing = false, importProgress = 0f, waiting = 0,
                 onImport = {}, onAllow = {}, onSetUp = { open(OnboardingKey()) },

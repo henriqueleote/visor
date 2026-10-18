@@ -135,8 +135,20 @@ class GlassesService : Service() {
             }
         } else if (intent?.action == ACTION_RECONNECT) {
             retry()
+        } else {
+            targetFrom(intent)?.let(::switchTo)
         }
         return START_STICKY
+    }
+
+    /** Another pair asked for: the session with this one ends first, as the glasses hold one each. */
+    private fun switchTo(target: GlassesTarget) {
+        if (target.serial == connection.state.value.target?.serial) return
+        if (live.running.value || media.importing.value) return
+        scope.launch {
+            connection.stop()
+            connection.start(scope, target)
+        }
     }
 
     /**

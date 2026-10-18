@@ -34,6 +34,8 @@ class GlassesConnection(
     private val hosts: SessionHostFactory,
     // Injectable so a test can keep the store reads on its own virtual clock.
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
+    // False for a quick look at another pair, which leaves the choice of pair as it was.
+    private val chooses: Boolean = true,
 ) {
 
     private val _state = MutableStateFlow(GlassesState())
@@ -63,6 +65,11 @@ class GlassesConnection(
 
     private var job: Job? = null
 
+    private val _pair = MutableStateFlow(runCatching { store.currentSerial() }.getOrNull())
+
+    /** The serial of the pair Visor is for: the one connected, or chosen last. What Visor keeps per pair follows it. */
+    val pair: StateFlow<String?> = _pair.asStateFlow()
+
     private val _running = MutableStateFlow(false)
 
     /** True from [start] until [stop] has let go of the socket. */
@@ -86,25 +93,22 @@ class GlassesConnection(
         lastOverride = override
         _running.value = true
         job = scope.launch {
-            // Both reads move together, not one withContext each: see the class doc for why
-            // they leave the caller's dispatcher at all.
-            val (bundles, bundle) = withContext(ioDispatcher) {
-                val bundles = store.all()
-                val bundle = if (override != null) {
-                    bundles.firstOrNull { it.serial == override.serial }
-                } else {
-                    store.load()
-                }
-                bundles to bundle
+            // The reads and the choice move together, not one withContext each: see the class doc for why
+            // they leave the caller's dispatcher at all. The pair connected to is the one chosen from now on.
+            val bundle = withContext(ioDispatcher) {
+                val bundle = if (override != null) store.all().firstOrNull { it.serial == override.serial } else store.chosen()
+                if (chooses) (override?.serial ?: bundle?.serial)?.let(store::choose)
+                bundle
             }
             val target = override ?: bundle?.let {
                 GlassesTarget(GlassesLink.Bluetooth(it.glassesAddress), it.serial)
             }
             if (target == null) {
-                _state.value = GlassesState(reason = idleReason(bundles))
+                _state.value = GlassesState(reason = "No glasses are set up on this phone yet. Set up glasses to start.")
                 return@launch
             }
 
+            if (chooses) _pair.value = target.serial
             _state.value = GlassesState(target = target)
             val opened = hosts.create(target, bundle)
             host = opened
@@ -273,14 +277,6 @@ class GlassesConnection(
             withContext(ioDispatcher) { store.save(checked.bundle) }
         }
         _state.value = _state.value.copy(diagnosis = checked.diagnosis)
-    }
-
-    /** Why there is nothing to connect to, in words a person can act on. */
-    private fun idleReason(bundles: List<IdentityBundle>): String = when {
-        bundles.isEmpty() ->
-            "No glasses are set up on this phone yet. Set up glasses to start."
-        else ->
-            "More than one pair of glasses is set up on this phone. Choose which one to use."
     }
 
     companion object {

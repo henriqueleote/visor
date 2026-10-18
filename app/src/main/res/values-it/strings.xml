@@ -61,6 +61,8 @@
     <string name="ago_hours">%d h fa</string>
     <string name="ago_days">%d g fa</string>
     <string name="pill_importing">Importo %d%%</string>
+    <string name="pill_seen">Visti %s</string>
+    <string name="pill_not_connected">Non connessi</string>
     <string name="mood_importing">Importo</string>
     <plurals name="pill_new">
         <item quantity="one">%d nuovo</item>
@@ -411,6 +413,7 @@
     <string name="glasses_owned">Occhiali di %s</string>
     <string name="glasses_default_name">Ray-Ban Meta</string>
     <string name="glasses_default_named">Ray-Ban Meta %s</string>
+    <string name="pair_look_name">%1$s, %2$s</string>
     <string name="glasses_frame">Montatura</string>
     <string name="glasses_color">Colore</string>
     <string name="glasses_lenses">Lenti</string>
@@ -441,6 +444,7 @@
     <string name="glasses_link_off">Non collegati</string>
     <string name="glasses_disconnect">Scollega</string>
     <string name="glasses_connect">Collega</string>
+    <string name="glasses_other_batteries">%1$d%% · custodia %2$d%%</string>
     <string name="glasses_section_account">Account Meta</string>
     <string name="glasses_logged_in">Accesso a Meta fatto</string>
     <string name="glasses_logged_out">Nessun accesso a Meta</string>
