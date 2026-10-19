@@ -37,6 +37,8 @@ class BluetoothLeTransport(
     private val wireLog: WireLog? = null,
     private val keeper: LeKeeper? = null,
     private val io: CoroutineDispatcher = Dispatchers.IO,
+    // The Neural Band's is 129.
+    private val defaultPsm: Int = META_LE_DEFAULT_PSM,
 ) : Transport {
 
     @Volatile private var socket: BluetoothSocket? = null
@@ -51,7 +53,7 @@ class BluetoothLeTransport(
         }
         val device = context.getSystemService(BluetoothManager::class.java)?.adapter?.getRemoteDevice(address)
             ?: throw TransportConnectException(ConnectFailure.BLUETOOTH_OFF, "Bluetooth is off")
-        val psm = keeper?.psm ?: withTimeoutOrNull(GATT_MS) { readPsm(device) } ?: META_LE_DEFAULT_PSM
+        val psm = keeper?.psm ?: withTimeoutOrNull(GATT_MS) { readPsm(device) } ?: defaultPsm
         keeper?.note("opening L2CAP psm $psm, LE link ${if (keeper.connected.value) "up" else "down"}")
         withContext(io) {
             val opening = try {

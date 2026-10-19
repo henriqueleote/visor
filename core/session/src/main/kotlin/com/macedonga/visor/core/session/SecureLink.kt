@@ -137,10 +137,12 @@ class SecureLink(
             ecdhSecret = secret,
         )
 
+        // What both ends support is what the link uses: the band offers 27, no Multikey.
+        val multikey = (OUR_PARAMETERS and request.supportedParameters and enable.parameters and Kdf.MULTIKEY) != 0
         // Keep exactly as measured: TX takes the peer's RequestEncryption challenge as nonce and
         // our seed.
-        val rxKeys = Kdf.deriveDirectionKeys(secret, myChallenge, enable.seed, enable.iv)
-        val txKeys = Kdf.deriveDirectionKeys(secret, request.challenge, mySeed, myIv)
+        val rxKeys = Kdf.deriveDirectionKeys(secret, myChallenge, enable.seed, enable.iv, multikey = multikey)
+        val txKeys = Kdf.deriveDirectionKeys(secret, request.challenge, mySeed, myIv, multikey = multikey)
         rxCrypto = FrameCrypto(rxKeys, initRxSeq = enable.base.toInt())
         txCrypto = FrameCrypto(txKeys, initTxSeq = mySeq.toInt())
 
@@ -224,5 +226,8 @@ class SecureLink(
 
         /** How many frames [open] will read while waiting for the peer's two messages. */
         const val HANDSHAKE_READS = 8
+
+        /** The parameters this side's RequestEncryption and EnableEncryption announce. */
+        const val OUR_PARAMETERS = 31
     }
 }

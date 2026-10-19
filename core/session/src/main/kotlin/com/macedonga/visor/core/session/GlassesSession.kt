@@ -204,15 +204,22 @@ class GlassesSession(
         withLinkDeadline(END_LINK_SETUP_TIMEOUT_MILLIS, "the glasses did not send their EndLinkSetup") {
             while (true) {
                 val message = mux.receive()
-                if (message.info.channelId == LINK_SETUP_CHANNEL &&
-                    message.info.messageType == LinkSetupMsgType.END_LINK_SETUP.value
-                ) {
+                if (isTheirEndLinkSetup(message)) {
                     mux.sendStatus(DataXConnection.mirror(message.info.channelId), SUCCESS)
                     return@withLinkDeadline
                 }
                 handleMessage(message)
             }
         }
+    }
+
+    // The glasses answer on the link setup channel our RequestEncryption opened; the Neural Band on one of its own,
+    // 0x9001, that names no service.
+    private fun isTheirEndLinkSetup(message: DataXMessage): Boolean {
+        val info = message.info
+        if (info.messageType != LinkSetupMsgType.END_LINK_SETUP.value || info.flags.hasError) return false
+        return info.channelId == LINK_SETUP_CHANNEL ||
+            ((info.channelId and 0x8000) != 0 && info.serviceId == 0 && registry.serviceForInbound(info.channelId) == 0)
     }
 
     /** Drain what the glasses said during link setup before anyone allocates a local channel. */
