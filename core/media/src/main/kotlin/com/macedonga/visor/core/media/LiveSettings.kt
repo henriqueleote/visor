@@ -14,7 +14,6 @@ data class LiveSettings(
     val quality: StreamQuality = StreamQuality.FULL_HD,
     val bitrate: Int = 4_000_000,
     val frameRate: Int = 30,
-    val band: Int = BAND_2GHZ,
     val overlays: Set<LiveOverlay> = setOf(LiveOverlay.HEAT),
     val replaySeconds: Int = 120,
     /** The glasses' microphones in the phone's speaker while watching. Recordings get them either way. */
@@ -39,7 +38,6 @@ class LiveSettingsStore(context: Context) {
             .putString("quality", next.quality.name)
             .putInt("bitrate", next.bitrate)
             .putInt("frame_rate", next.frameRate)
-            .putInt("band", next.band)
             .putStringSet("overlays", next.overlays.map { it.name }.toSet())
             .putInt("replay_seconds", next.replaySeconds)
             .putBoolean("listen", next.listen)
@@ -57,7 +55,6 @@ class LiveSettingsStore(context: Context) {
             quality = runCatching { StreamQuality.valueOf(prefs.getString("quality", null).orEmpty()) }.getOrDefault(d.quality),
             bitrate = prefs.getInt("bitrate", d.bitrate),
             frameRate = prefs.getInt("frame_rate", d.frameRate),
-            band = prefs.getInt("band", d.band),
             overlays = prefs.getStringSet("overlays", null)?.mapNotNull { runCatching { LiveOverlay.valueOf(it) }.getOrNull() }?.toSet() ?: d.overlays,
             replaySeconds = prefs.getInt("replay_seconds", d.replaySeconds),
             listen = prefs.getBoolean("listen", d.listen),

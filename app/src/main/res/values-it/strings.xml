@@ -225,8 +225,6 @@
     <string name="live_settings_resolution">Risoluzione</string>
     <string name="live_settings_bitrate">Bitrate</string>
     <string name="live_settings_frame_rate">Fotogrammi al secondo</string>
-    <string name="live_settings_band">Banda Wi-Fi</string>
-    <string name="live_settings_band_sub">A 5 GHz il Wi-Fi degli occhiali si blocca dopo pochi secondi di streaming; a 2,4 GHz regge.</string>
     <string name="live_settings_replay">Replay istantaneo</string>
     <string name="live_settings_replay_sub">Quanta parte della diretta Visor tiene in memoria, pronta da salvare.</string>
     <string name="live_settings_on_picture">Sull\'immagine</string>
@@ -275,6 +273,7 @@
     <string name="meta_ai_new">Nuova conversazione</string>
     <string name="meta_ai_remembered">Ricordato · %1$s</string>
     <string name="meta_ai_no_answer">Nessuna risposta · %1$s</string>
+    <string name="meta_ai_on_glasses">Fatto dagli occhiali</string>
     <string name="meta_ai_too_late">Risposta arrivata quando gli occhiali erano già oltre</string>
     <string name="meta_ai_phone">Telefono</string>
     <string name="meta_ai_live_ai">Live AI</string>
@@ -350,6 +349,8 @@
     <string name="settings_diagnostics_sub">Il collegamento, la chiave e cosa riportano gli occhiali</string>
     <string name="settings_event_log_sub">Tutto ciò che ha fatto il collegamento, dal più vecchio</string>
     <string name="tiles_hint">Tieni premuta un\'impostazione per fissarla qui</string>
+    <string name="tile_partly">Acceso in parte</string>
+    <string name="tile_refused">Rifiutato</string>
 
     <string name="topic_meta_ai">Meta AI</string>
     <string name="topic_language">Lingua e voce</string>
@@ -545,6 +546,8 @@
     <string name="access_location_always_why">Così il luogo viene annotato anche con Visor chiusa. Scegli “Consenti sempre”.</string>
     <string name="access_wifi">Wi-Fi nelle vicinanze</string>
     <string name="access_wifi_why">Per le importazioni e la visione live via Wi-Fi Direct.</string>
+    <string name="access_companion">Dispositivo associato</string>
+    <string name="access_companion_why">Così l\'assistente può aprire indicazioni e musica sul telefono anche con Visor in background.</string>
     <string name="access_foot">Se rifiutato per sempre, Android apre invece la pagina di Visor.</string>
 
     <string name="advanced_title">Impostazioni avanzate</string>
@@ -647,6 +650,7 @@
     <string name="onboard_new_key">Qualsiasi altro telefono o app che li aveva li ha persi.</string>
     <string name="onboard_open">Apri Visor</string>
     <string name="onboard_failed">Non configurati</string>
+    <string name="onboard_wrong_owner">Questi occhiali appartengono a un altro account Meta. Accedi con quello che li ha configurati nell\'app Meta AI, oppure ripristina gli occhiali.</string>
     <string name="onboard_failed_untouched">Sugli occhiali non cambia nulla prima dell\'ultimo passo.</string>
     <string name="onboard_try_again">Riprova</string>
     <string name="onboard_choose_again">Scegli di nuovo</string>
@@ -772,7 +776,7 @@
     <string name="features_turn_off">Spegni</string>
     <string name="feature_cf">Focus conversazione</string>
     <string name="feature_cf_about">Rende più forte e chiara la persona davanti a te, in un posto rumoroso.</string>
-    <string name="feature_cf_use">Avvialo dalla sua pagina, con la voce o tenendo premuto il touchpad.</string>
+    <string name="feature_cf_use">Avvialo dalla sua pagina o con la voce.</string>
     <string name="feature_spatial">Audio spaziale</string>
     <string name="feature_spatial_about">Musica e video suonano avvolgenti, come se arrivassero da intorno a te e non dalle orecchie.</string>
     <string name="feature_spatial_use">Fai partire musica o un video. Spegnila qui per lo stereo.</string>
@@ -780,7 +784,7 @@
     <string name="feature_follow_ups_about">Dopo più tipi di risposte l\'assistente resta in ascolto, così continui senza “Hey Meta”. Un suono ti dice quando smette.</string>
     <string name="feature_follow_ups_use">Chiedi qualcosa, poi continua a parlare dopo la risposta.</string>
     <string name="cf_lede">I microfoni degli occhiali isolano la voce della persona davanti a te e gli altoparlanti la avvicinano.</string>
-    <string name="cf_allow_note">Meta lo offre solo dove la sua app mostra l\'introduzione, e gli occhiali controllano soltanto che l\'introduzione sia stata fatta. Visor la segna come fatta.</string>
+    <string name="cf_allow_note">Meta lo offre solo dove la sua app mostra l\'introduzione e dà l\'accesso. Visor segna l\'introduzione come fatta e dà l\'accesso.</string>
     <string name="cf_start">Avvio</string>
     <string name="cf_hold">Tieni premuto per avviarlo</string>
     <string name="cf_hold_on">Tieni premuto il touchpad per accenderlo, di nuovo per spegnerlo.</string>
@@ -806,6 +810,7 @@
     <string name="cf_now_paused">In pausa</string>
     <string name="cf_now_off">Spento</string>
     <string name="cf_now_off_sub">Avvialo da qui, o tieni premuto il touchpad.</string>
+    <string name="cf_now_off_here">Avvialo da qui.</string>
     <string name="cf_now_volume">voce %1$s</string>
     <string name="cf_stop">Ferma</string>
     <string name="cf_resume">Riprendi</string>
@@ -819,6 +824,7 @@
     <string name="cf_paused_timeout">In pausa dopo un po\' senza uso.</string>
     <string name="cf_refused">Gli occhiali non l\'hanno avviato.</string>
     <string name="cf_refused_setup">Gli occhiali vogliono la configurazione: consentilo qui sotto.</string>
+    <string name="cf_refused_access">Gli occhiali vogliono l\'accesso anticipato: consentilo qui sotto.</string>
     <string name="cf_refused_region">Gli occhiali dicono che qui non è disponibile.</string>
     <string name="cf_refused_device">Questi occhiali non possono avviarlo.</string>
     <string name="cf_refused_bluetooth">Serve che gli occhiali siano collegati al telefono.</string>
@@ -901,4 +907,6 @@
     <string name="hct_failed_tone">Gli occhiali non hanno riprodotto il tono.</string>
     <string name="hct_failed_fit">Gli occhiali non sono riusciti a creare il profilo.</string>
     <string name="hct_retry">Riprova</string>
+    <string name="phone_directions">Indicazioni per %1$s</string>
+    <string name="phone_play">Riproduci %1$s</string>
 </resources>

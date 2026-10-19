@@ -46,11 +46,8 @@ class DataXConnection(
     // RX messageType delta-decode cache.
     private val rxLastType = HashMap<Int, Int>()
 
-    // A message whose payload did not fit in the frame that carried it. One slot is enough:
-    // a fragment is continued immediately, never interleaved with another channel's message.
-    private var fragment: Fragment? = null
-
-    private class Fragment(val info: MessageInfo, val buffer: ByteArray, val needed: Int)
+    // The DataX stream after the last whole message: the start of the next one, cut wherever the frame ended.
+    private var carry = ByteArray(0)
 
     /** True when [receive] can return a message without waiting on the peer. */
     val buffered: Boolean get() = inbox.isNotEmpty() || queued.get() > 0
@@ -158,8 +155,25 @@ class DataXConnection(
             ?.let { deliver(it) }
     }
 
-    private fun decode(plaintext: ByteArray): List<DataXMessage> =
-        splitMessages(plaintext).map { DataXMessage(applyTypeCache(it.info), it.payload) }
+    private fun decode(plaintext: ByteArray): List<DataXMessage> {
+        val messages = splitMessages(plaintext).map { DataXMessage(applyTypeCache(it.info), it.payload) }
+        trace?.invoke(traceLines(plaintext, messages))
+        return messages
+    }
+
+    private fun traceLines(plaintext: ByteArray, messages: List<DataXMessage>): String = buildString {
+        fun hex(bytes: ByteArray) = bytes.joinToString("") { "%02x".format(it) }
+        append("FRAME %08x %d pad=%d head=%s tail=%s".format(
+            System.identityHashCode(this@DataXConnection), plaintext.size, plaintext.size - withoutPad(plaintext).size,
+            hex(plaintext.copyOfRange(0, minOf(16, plaintext.size))), hex(plaintext.copyOfRange(maxOf(0, plaintext.size - 8), plaintext.size)),
+        ))
+        for (m in messages) {
+            append("\n   msg ch=0x%04x svc=%d mt=0x%04x len=%d hdr=%d payload=%d".format(
+                m.info.channelId, m.info.serviceId, m.info.messageType, m.info.length, m.info.headerLen, m.payload.size,
+            ))
+        }
+        if (carry.isNotEmpty()) append("\n   CARRY %d".format(carry.size))
+    }
 
     /** Update or apply the per-channel messageType cache. */
     private fun applyTypeCache(info: MessageInfo): MessageInfo {
@@ -175,56 +189,33 @@ class DataXConnection(
         return info
     }
 
-    /** Walk [plaintext] into DataX messages by `wireTotal = 4 + length`. */
+    /**
+     * Walk [plaintext] into DataX messages by `wireTotal = 4 + length`. The frames' data concatenates into one stream
+     * and a message runs on wherever a frame cuts it, header included. The pad comes off first: walking it as data let a
+     * message one byte short of the frame's end take the pad for its last byte, and the byte it was owed, at the head of
+     * the next frame, was then read as a header. The glasses never end a frame's data in bytes that read as pad.
+     */
     private fun splitMessages(plaintext: ByteArray): List<DataXMessage> {
+        val stream = carry + withoutPad(plaintext)
         val messages = mutableListOf<DataXMessage>()
         var pos = 0
-
-        val held = fragment
-        if (held != null) {
-            // Continuation bytes, with no header of their own.
-            val body = withoutPad(plaintext)
-            val take = minOf(held.needed - held.buffer.size, body.size)
-            val buffer = held.buffer + body.copyOfRange(0, take)
-            pos = take
-            if (buffer.size < held.needed) {
-                fragment = Fragment(held.info, buffer, held.needed)
-                return messages
-            }
-            fragment = null
-            messages += DataXMessage(held.info, buffer)
-        }
-
-        while (plaintext.size - pos >= 4) {
-            val info = Header.parse(plaintext.copyOfRange(pos, plaintext.size))
-            val wireTotal = info.wireTotal
-            if (plaintext.size - pos < wireTotal) {
-                // Strip the pad and look again.
-                val body = withoutPad(plaintext)
-                val remaining = body.size - pos
-                if (remaining >= 4 && remaining < wireTotal) {
-                    // `length` counts the extension tags, so what is still owed is the
-                    // declared length less the tags already read. That is dataLength.
-                    val needed = info.dataLength
-                    // Clamped, because `headerLen` was measured on the UNSTRIPPED plaintext (the
-                    // tag walker will read pad bytes as extension tags) while the head is copied
-                    // out of the stripped body.
-                    val from = minOf(pos + info.headerLen, body.size)
-                    val head = body.copyOfRange(from, body.size)
-                    fragment = Fragment(info, head, needed)
-                }
-                break
-            }
-            messages += DataXMessage(
-                info,
-                plaintext.copyOfRange(pos + info.headerLen, pos + wireTotal),
-            )
+        while (stream.size - pos >= 4) {
+            val wireTotal = Header.parse(stream.copyOfRange(pos, pos + 4)).wireTotal
+            if (stream.size - pos < wireTotal) break
+            val whole = stream.copyOfRange(pos, pos + wireTotal)
+            val info = Header.parse(whole)
+            messages += DataXMessage(info, whole.copyOfRange(info.headerLen, wireTotal))
             pos += wireTotal
         }
+        carry = stream.copyOfRange(pos, stream.size)
         return messages
     }
 
     companion object {
+        /** Debug builds: each decrypted frame and the messages walked out of it, as lensbreak's LENSBREAK_DATAX_TRACE. */
+        @Volatile
+        var trace: ((String) -> Unit)? = null
+
         /** The ack channel for a peer-originated channel: clear the secure bit, 0x8000. */
         fun mirror(channelId: Int): Int = channelId and 0x7FFF
     }

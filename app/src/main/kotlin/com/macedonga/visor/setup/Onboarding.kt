@@ -238,6 +238,14 @@ class OnboardingViewModel @Inject constructor(
         link()
     }
 
+    /** The pair is owned by another account: log out and back to the login, with back going to the pairing page. */
+    fun otherAccount() {
+        provisioner.reset()
+        login.logOut()
+        chosen = null
+        page = Page.LOGIN
+    }
+
     /** Bond the chosen pair if it is not, then make this phone its owner. */
     fun link() {
         val pair = chosen ?: return
@@ -748,7 +756,7 @@ private fun LinkingPage(model: OnboardingViewModel, status: Provisioner.Status, 
                     BondFailed.Why.REFUSED -> stringResource(R.string.onboard_bond_refused)
                     BondFailed.Why.NO_ANSWER -> stringResource(R.string.onboard_bond_no_answer)
                     BondFailed.Why.BLUETOOTH_OFF -> stringResource(R.string.onboard_bluetooth_off)
-                    null -> failure?.reason.orEmpty()
+                    null -> if (failure?.wrongOwner == true) stringResource(R.string.onboard_wrong_owner) else failure?.reason.orEmpty()
                 }
                 Text(reason, style = Visor.type.body, color = colors.textSecondary, modifier = Modifier.padding(top = 10.dp))
                 if (failure != null) Text(stringResource(R.string.onboard_failed_untouched), style = Visor.type.label, color = colors.textTertiary, modifier = Modifier.padding(top = 14.dp))
@@ -759,7 +767,11 @@ private fun LinkingPage(model: OnboardingViewModel, status: Provisioner.Status, 
                         model.back()
                     }
                     Spacer(Modifier.width(12.dp))
-                    BigPill(stringResource(R.string.onboard_try_again), { model.link() }, Modifier.weight(1f))
+                    if (failure?.wrongOwner == true) {
+                        BigPill(stringResource(R.string.onboard_login_other), model::otherAccount, Modifier.weight(1f))
+                    } else {
+                        BigPill(stringResource(R.string.onboard_try_again), { model.link() }, Modifier.weight(1f))
+                    }
                 }
             }
             else -> {

@@ -7,6 +7,7 @@ import com.macedonga.visor.core.identity.publicKeyOf
 import com.macedonga.visor.core.identity.pyUrlencode
 import com.macedonga.visor.core.identity.readPrivateKeyPem
 import com.macedonga.visor.core.protocol.IdentityMsgType
+import com.macedonga.visor.core.protocol.IdentityStatus
 import com.macedonga.visor.core.protocol.ServiceId
 import com.macedonga.visor.core.protocol.Wire
 import com.macedonga.visor.core.session.DataXConnection
@@ -31,7 +32,10 @@ import kotlinx.serialization.json.put
 const val GRAPH_BASE = "https://graph.facebook-hardware.com"
 private const val PAIR_PROTOCOL_VERSION = "4"
 
-class ProvisioningError(message: String) : Exception(message)
+open class ProvisioningError(message: String) : Exception(message)
+
+/** 0x1042: the glasses already have an owner, and Meta's receipt names a different account. */
+class WrongOwnerError : ProvisioningError("These glasses belong to another Meta account")
 
 private fun hwAppToken(): String = BuildConfig.META_HW_TOKEN.ifEmpty {
     throw ProvisioningError("This build has no Meta app token. Add VISOR_META_HW_TOKEN to local.properties and build again.")
@@ -207,6 +211,7 @@ class ProvisioningFlow(
             val message = withTimeoutOrNull(remaining) { connection.receive() } ?: continue
             if (message.info.messageType == messageType.value) return message.payload
             if (message.info.flags.hasError && message.info.channelId == mirror) {
+                if (message.info.errorId == IdentityStatus.INVALID_USER_ID.value) throw WrongOwnerError()
                 throw ProvisioningError(
                     "glasses answered status 0x%04x while awaiting %s".format(message.info.errorId, messageType.name),
                 )

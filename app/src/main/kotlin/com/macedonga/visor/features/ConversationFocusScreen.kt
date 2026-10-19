@@ -158,7 +158,8 @@ private fun FocusNow(hearing: HearingState, allowed: Boolean, model: FeaturesMod
             hearing.volume?.let { stringResource(R.string.cf_now_volume, if (it > 0) "+$it" else "$it") },
         ).joinToString(" · ").ifEmpty { stringResource(R.string.cf_now_on_sub) }
         paused -> stringResource(causeWords(hearing.cause))
-        else -> stringResource(R.string.cf_now_off_sub)
+        model.features.holdStartsFocus(host.state) -> stringResource(R.string.cf_now_off_sub)
+        else -> stringResource(R.string.cf_now_off_here)
     }
     Card {
         Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -202,6 +203,7 @@ private fun causeWords(cause: HearingCause): Int = when (cause) {
 
 private fun refusalWords(refusal: HearingRefusal): Int = when (refusal) {
     HearingRefusal.NUX_REQUIRED -> R.string.cf_refused_setup
+    HearingRefusal.NO_ACCESS -> R.string.cf_refused_access
     HearingRefusal.GEOGATED -> R.string.cf_refused_region
     HearingRefusal.INVALID_DEVICE -> R.string.cf_refused_device
     HearingRefusal.BT_REQUIRED -> R.string.cf_refused_bluetooth

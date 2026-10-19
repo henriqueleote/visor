@@ -111,6 +111,21 @@ fun wifiDirectAllowed(context: Context): Boolean =
 
 fun wifiIsOn(context: Context): Boolean = context.getSystemService(WifiManager::class.java)?.isWifiEnabled == true
 
+/** The frequency of the network the phone itself is on, or 0. */
+@Suppress("DEPRECATION")
+fun phoneWifiMhz(context: Context): Int = context.getSystemService(WifiManager::class.java)?.connectionInfo?.frequency?.takeIf { it > 0 } ?: 0
+
+/**
+ * Whether the phone's radio takes turns between its own network on [own] and a group on [group] MHz: two channels
+ * of one band always, and of two bands on a phone that cannot use both at once. The group then misses the glasses'
+ * frames whenever the radio is away, and a moving pair loses the link.
+ */
+fun radioTakesTurns(context: Context, own: Int, group: Int): Boolean {
+    if (own <= 0 || own == group) return false
+    if ((own < 3000) == (group < 3000)) return true
+    return Build.VERSION.SDK_INT < Build.VERSION_CODES.S || context.getSystemService(WifiManager::class.java)?.isDualBandSimultaneousSupported != true
+}
+
 /** A Wi-Fi Direct group this phone owns, the way the Meta app does it. The glasses only join. */
 class PhoneGroup(private val context: Context, private val note: (String) -> Unit = {}) {
     /** What the glasses are told to join: ours, or Android's own when it would only make one of its own. */
@@ -122,6 +137,11 @@ class PhoneGroup(private val context: Context, private val note: (String) -> Uni
     private val manager: WifiP2pManager? = context.getSystemService(WifiP2pManager::class.java)
     private var channel: WifiP2pManager.Channel? = null
 
+    // The glasses look for the group on the channel they last joined it on and answer INTERNAL_ERROR for half a
+    // minute before they scan further, so each group goes up where the last one was when Android allows it. The
+    // phone's own network's channel comes first: there the radio never has to leave the group.
+    private val prefs = context.getSharedPreferences("wifi_direct", Context.MODE_PRIVATE)
+
     /**
      * [band] 2 or 5 pins the group to 2.4 or 5 GHz; 0 lets the phone choose. Returns the frequency in MHz. A dropped
      * channel or a group a killed run left up can make the first try fail, so a fresh channel tries again, and last
@@ -130,6 +150,7 @@ class PhoneGroup(private val context: Context, private val note: (String) -> Uni
     @SuppressLint("MissingPermission")
     suspend fun create(band: Int = 0): Int {
         val m = manager ?: throw WifiUnavailable("this phone has no Wi-Fi Direct")
+        val last = phoneWifiMhz(context).takeIf { inBand(it, band) } ?: prefs.getInt(LAST_MHZ, 0).takeIf { inBand(it, band) } ?: 0
         var why = ""
         var answered = false
         for (attempt in 0 until ATTEMPTS) {
@@ -155,22 +176,32 @@ class PhoneGroup(private val context: Context, private val note: (String) -> Uni
                 }
             }
             val own = attempt == ATTEMPTS - 1
-            val refused = if (own) act { m.createGroup(ch, it) } else act { m.createGroup(ch, config(band), it) }
-            note("Wi-Fi Direct try ${attempt + 1}: ${if (own) "Android's own group" else "our group"} ${if (refused == null) "accepted" else reason(refused)}")
+            val mhz = if (attempt == 0) last else 0
+            val refused = if (own) act { m.createGroup(ch, it) } else act { m.createGroup(ch, config(band, mhz), it) }
+            val which = if (own) "Android's own group" else "our group" + if (mhz > 0) " on $mhz MHz" else ""
+            note("Wi-Fi Direct try ${attempt + 1}: $which ${if (refused == null) "accepted" else reason(refused)}")
             if (refused == null) {
                 // createGroup only accepts the request; the group is up once it reports an owner.
-                repeat(40) {
-                    val group = groupInfo(m, ch)
-                    if (group?.isGroupOwner == true) {
-                        if (own) {
-                            ssid = group.networkName
-                            passphrase = group.passphrase
-                        }
-                        return group.frequency
-                    }
+                var up: WifiP2pGroup? = null
+                for (i in 0 until 40) {
+                    up = groupInfo(m, ch)?.takeIf { it.isGroupOwner }
+                    if (up != null) break
                     delay(250)
                 }
-                why = "the group never came up"
+                when {
+                    up == null -> why = "the group never came up"
+                    // Android's own group takes no band, and a Live at 5 GHz crashes the glasses' Wi-Fi in seconds.
+                    !inBand(up.frequency, band) -> why = "the group came up on ${up.frequency} MHz"
+                    else -> {
+                        if (own) {
+                            ssid = up.networkName
+                            passphrase = up.passphrase
+                        }
+                        prefs.edit().putInt(LAST_MHZ, up.frequency).apply()
+                        return up.frequency
+                    }
+                }
+                note("Wi-Fi Direct try ${attempt + 1}: $why")
             } else {
                 if (refused != NO_ANSWER) answered = true
                 why = reason(refused)
@@ -186,12 +217,20 @@ class PhoneGroup(private val context: Context, private val note: (String) -> Uni
     private suspend fun groupInfo(m: WifiP2pManager, ch: WifiP2pManager.Channel): WifiP2pGroup? =
         withTimeoutOrNull(P2P_MILLIS) { suspendCancellableCoroutine<WifiP2pGroup?> { cont -> m.requestGroupInfo(ch) { cont.resume(it) } } }
 
-    private fun config(band: Int) = WifiP2pConfig.Builder().setNetworkName(ssid).setPassphrase(passphrase).apply {
-        when (band) {
-            2 -> setGroupOperatingBand(WifiP2pConfig.GROUP_OWNER_BAND_2GHZ)
-            5 -> setGroupOperatingBand(WifiP2pConfig.GROUP_OWNER_BAND_5GHZ)
+    // A frequency and a band are exclusive in the builder.
+    private fun config(band: Int, mhz: Int) = WifiP2pConfig.Builder().setNetworkName(ssid).setPassphrase(passphrase).apply {
+        when {
+            mhz > 0 -> setGroupOperatingFrequency(mhz)
+            band == 2 -> setGroupOperatingBand(WifiP2pConfig.GROUP_OWNER_BAND_2GHZ)
+            band == 5 -> setGroupOperatingBand(WifiP2pConfig.GROUP_OWNER_BAND_5GHZ)
         }
     }.build()
+
+    private fun inBand(mhz: Int, band: Int) = when (band) {
+        2 -> mhz in 2400..2500
+        5 -> mhz in 4900..5900
+        else -> mhz > 0
+    }
 
     suspend fun remove() {
         val m = manager ?: return
@@ -205,6 +244,7 @@ class PhoneGroup(private val context: Context, private val note: (String) -> Uni
         const val ALPHABET = "abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789"
         const val ATTEMPTS = 3
         const val RETRY_MILLIS = 1_000L
+        const val LAST_MHZ = "last_mhz"
 
         fun reason(code: Int) = when (code) {
             NO_ANSWER -> "Android did not answer"

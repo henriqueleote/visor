@@ -455,7 +455,7 @@ class LiveStream(
             if (settings.manual) settings.quality else top.quality,
             if (settings.manual) settings.bitrate else top.bitrate,
             if (settings.manual) settings.frameRate else top.frameRate,
-            bypassDonCheck = true, overWifi = true, groupBand = settings.band, auto = !settings.manual,
+            bypassDonCheck = true, overWifi = true, groupBand = BAND_2GHZ, auto = !settings.manual,
         )
     }
 
@@ -512,8 +512,8 @@ class LiveStream(
             fail(LiveProblem.NOT_CONNECTED)
             return
         }
-        // Charging means docked in the case, and there the glasses keep the camera off.
-        if (!reuse && charging()) {
+        // Charging folded means docked in the case, and there the glasses keep the camera off. Open, it is a cable.
+        if (!reuse && inCase()) {
             say("Charging in the case: the glasses keep the camera off there.")
             fail(LiveProblem.IN_CASE)
             return
@@ -639,6 +639,8 @@ class LiveStream(
         val config = VideoConfig(width = next.quality.width, height = next.quality.height, bitrate = next.bitrate, frameRate = next.frameRate, iFrameInterval = 1)
         lastConfig = config
         scope.launch {
+            // A stall can tear the session down first; the restart asks for the new rung itself.
+            if (noSession) return@launch
             val answer = ask(StreamType.CONFIGURE_VIDEO_STREAM_REQUEST) { configureVideo(it, config) }
             say("Quality to ${next.quality.label}, ${next.bitrate / 1000} kbit/s, ${next.frameRate} fps: ${answer.words()}")
         }
@@ -646,10 +648,13 @@ class LiveStream(
 
     private fun fail(problem: LiveProblem) {
         // Whatever broke, glasses put in the case while it was starting will not go on.
-        _status.value = LiveStatus(LivePhase.FAILED, if (charging()) LiveProblem.IN_CASE else problem)
+        _status.value = LiveStatus(LivePhase.FAILED, if (inCase()) LiveProblem.IN_CASE else problem)
     }
 
-    private fun charging() = connection.state.value.device?.battery?.charging == true
+    private fun inCase() = connection.state.value.device?.let { it.battery?.charging == true && it.hinge != "OPEN" } == true
+
+    // A Wi-Fi stream between sessions: its stream went with the old one, and Bluetooth has none (it answers 0xc001).
+    private val noSession: Boolean get() = params?.overWifi == true && wifi == null
 
     /** Which layer went quiet: the link, the DataX messages on it, or only the video. */
     private fun stallWords(now: Long): String {
@@ -679,7 +684,7 @@ class LiveStream(
         outputs.onStreamEnded()
         stopping = scope.launch {
             job?.cancel()
-            if (wifi != null || connection.state.value.link == LinkState.READY) {
+            if (wifi != null || (!noSession && connection.state.value.link == LinkState.READY)) {
                 val answer = ask(StreamType.CONTROL_STREAM_REQUEST) { controlStream(it, StreamAction.STOP) }
                 say("Stop: ${answer.words()}")
             }
@@ -712,6 +717,8 @@ class LiveStream(
             val mhz = g.create(band)
             groupBand = band
             say("The phone's group is up on $mhz MHz")
+            val own = phoneWifiMhz(context)
+            if (radioTakesTurns(context, own, mhz)) say("The phone's own Wi-Fi is on $own MHz: its radio takes turns between that and the group")
             var result: JoinResult? = null
             // Fresh out of a group, or of a Wi-Fi firmware restart, they answer INTERNAL_ERROR for up to half a minute.
             for (attempt in 1..JOIN_TRIES) {
@@ -859,7 +866,7 @@ class LiveStream(
     fun requestKeyframe() {
         val config = lastConfig ?: return
         val now = System.currentTimeMillis()
-        if (!_running.value || now - keyframeAskedAt < 2_000) return
+        if (!_running.value || noSession || now - keyframeAskedAt < 2_000) return
         keyframeAskedAt = now
         scope.launch {
             val answer = ask(StreamType.CONFIGURE_VIDEO_STREAM_REQUEST) { configureVideo(it, config) }
@@ -872,7 +879,7 @@ class LiveStream(
      * Asked for with a UserEventNotification; null if none came in a few seconds.
      */
     suspend fun capturePhoto(): ByteArray? {
-        if (!_running.value) return null
+        if (!_running.value || noSession) return null
         return coroutineScope {
             val photo = async(start = CoroutineStart.UNDISPATCHED) { receiver.photos.first() }
             send { it.sendOnService(SVC_MEDIA_STREAMING_CONTROL, StreamType.USER_EVENT_NOTIFICATION, requestPhotoCapture()) }
@@ -973,12 +980,6 @@ private const val PHOTO_WAIT_MS = 8_000L
 const val BAND_AUTO = 0
 const val BAND_2GHZ = 2
 const val BAND_5GHZ = 5
-
-fun bandWords(band: Int): String = when (band) {
-    BAND_2GHZ -> "2.4 GHz"
-    BAND_5GHZ -> "5 GHz"
-    else -> "Phone's choice"
-}
 
 private fun snappWords(code: Long): String = when (code) {
     1L -> "started"

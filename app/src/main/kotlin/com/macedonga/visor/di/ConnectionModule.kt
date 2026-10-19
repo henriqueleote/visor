@@ -37,12 +37,14 @@ import com.macedonga.visor.core.media.LiveSettingsStore
 import com.macedonga.visor.core.media.SVC_AIRSHIP
 import com.macedonga.visor.core.media.SVC_MEDIA_STREAMING_CONTROL
 import com.macedonga.visor.core.media.StreamReceiver
+import com.macedonga.visor.core.session.DataXConnection
 import com.macedonga.visor.core.session.Responder
 import com.macedonga.visor.core.settings.GlassesSettings
 import com.macedonga.visor.core.settings.RlDriveResponder
 import com.macedonga.visor.core.settings.SVC_RLDRIVE
 import com.macedonga.visor.core.transport.FileWireLog
 import com.macedonga.visor.core.transport.LinkMeter
+import com.macedonga.visor.phone.PhoneActions
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -68,14 +70,32 @@ object ConnectionModule {
      */
     @Provides
     @Singleton
-    fun transportFactory(@ApplicationContext context: Context, meter: LinkMeter, kind: LinkKind, keeper: LeKeeper): TransportFactory =
-        AndroidTransportFactory(
+    fun transportFactory(@ApplicationContext context: Context, meter: LinkMeter, kind: LinkKind, keeper: LeKeeper): TransportFactory {
+        if (BuildConfig.DEBUG) DataXConnection.trace = dataxTrace(File(context.filesDir, "datax.log"))
+        return AndroidTransportFactory(
             context,
             wireLog = if (BuildConfig.DEBUG) FileWireLog(File(context.filesDir, "wire.log")) else null,
             wifiMeter = meter,
             kind = kind,
             keeper = keeper,
         )
+    }
+
+    // Starts over past 32 MB; flushed at most four times a second, like the wire log.
+    private fun dataxTrace(file: File): (String) -> Unit {
+        val out = java.io.PrintWriter(java.io.BufferedWriter(java.io.FileWriter(file, file.length() < 32L shl 20), 1 shl 16))
+        var flushedAt = 0L
+        return { lines ->
+            synchronized(out) {
+                val now = System.currentTimeMillis()
+                out.append(java.time.LocalTime.now().toString()).append(' ').append(lines).append('\n')
+                if (now - flushedAt >= 250) {
+                    out.flush()
+                    flushedAt = now
+                }
+            }
+        }
+    }
 
     @Provides
     @Singleton
@@ -166,8 +186,9 @@ object ConnectionModule {
         hub: McpHub,
         hearing: Hearing,
         glassesConfig: GlassesConfig,
+        phone: PhoneActions,
     ): Assistant = Assistant(
-        context, connection, Voice(context), Brain({ config.config.value }, diary, hub, config), config, airship, diary,
+        context, connection, Voice(context), Brain({ config.config.value }, diary, hub, config, phone), config, airship, diary,
         live.wifiSession, live::frameNow,
         object : LiveAiCamera {
             // A Live view already running is the camera; only a stream Live AI opened is Live AI's to close.
@@ -182,6 +203,7 @@ object ConnectionModule {
         { com.macedonga.visor.core.settings.asBool(settings.value("detailed_responses_live_ai_enabled")) },
         hearing,
         { (glassesConfig.state.value.values[com.macedonga.visor.language.PROCESSING_TIMEOUT] as? Number)?.toLong() },
+        phone,
     )
 
     @Provides

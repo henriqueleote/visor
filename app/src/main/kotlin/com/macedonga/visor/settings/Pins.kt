@@ -19,7 +19,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 
-/** The quick tiles, in order: "g:<key>" for a glasses setting, "v:<id>" for one of Visor's own. */
+/** The quick tiles, in order: "g:<key>" for a glasses setting, "v:<id>" for one of Visor's own, "f:<id>" for a feature. */
 @Singleton
 class Pins @Inject constructor(@ApplicationContext context: Context) {
     private val prefs = context.getSharedPreferences("pins", Context.MODE_PRIVATE)
@@ -50,6 +50,7 @@ class Pins @Inject constructor(@ApplicationContext context: Context) {
 
         fun glasses(key: String) = "g:$key"
         fun visor(id: String) = "v:$id"
+        fun feature(id: String) = "f:$id"
     }
 }
 

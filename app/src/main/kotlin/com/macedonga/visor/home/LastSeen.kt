@@ -111,8 +111,11 @@ class LastSeen @Inject constructor(
             val battery = device.battery
             var now = was
             if (battery != null) now = now.copy(glasses = battery.percent.toInt(), case = device.case?.levelPercent() ?: was.case, at = System.currentTimeMillis())
-            // The case's "present" only says the case is known; charging is what says they sit in it.
-            if (state.link == LinkState.READY) now = now.copy(folded = device.hinge?.let { it == "CLOSED" } ?: was.folded, inCase = battery?.charging ?: was.inCase)
+            // The case's "present" only says the case is known; charging folded is what says they sit in it.
+            if (state.link == LinkState.READY) {
+                val inCase = battery?.charging?.let { it && device.hinge != "OPEN" }
+                now = now.copy(folded = device.hinge?.let { it == "CLOSED" } ?: was.folded, inCase = inCase ?: was.inCase)
+            }
             // A volume the glasses have not reported comes as -1: until they do, the one Android holds for them.
             now.copy(
                 freeMb = device.storage?.freeMb?.takeIf { it >= 0 } ?: was.freeMb,

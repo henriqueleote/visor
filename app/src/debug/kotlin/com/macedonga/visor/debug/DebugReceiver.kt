@@ -38,6 +38,7 @@ import kotlinx.coroutines.withTimeoutOrNull
  * MCP_PROBE / MCP_ADD (--es url --es name --es auth NONE|TOKEN|HEADER --es secret --es header), MCP_STATUS,
  * MCP_TOOLS (what the model would get), MCP_CALL (--es tool exposed-name --es args json), MCP_REMOVE (--es id),
  * DEMO_PAIR (--ez on false takes it away): a second pair on the home, a black Skyler, never connected or looked at.
+ * PHONE (--es do directions --es to --es mode | play --es q --es app | media --es c pause|resume|next|... | now).
  */
 @AndroidEntryPoint
 class DebugReceiver : BroadcastReceiver() {
@@ -56,6 +57,7 @@ class DebugReceiver : BroadcastReceiver() {
     @Inject lateinit var mcp: com.macedonga.visor.core.assistant.mcp.McpHub
     @Inject lateinit var pairs: com.macedonga.visor.pairs.Pairs
     @Inject lateinit var looks: com.macedonga.visor.stage.Looks
+    @Inject lateinit var phone: com.macedonga.visor.phone.PhoneActions
 
     override fun onReceive(context: Context, intent: Intent) {
         val action = intent.action?.substringAfterLast('.').orEmpty()
@@ -300,6 +302,14 @@ class DebugReceiver : BroadcastReceiver() {
                 else {
                     connection.submit { com.macedonga.visor.core.media.requestAsset(it, capture.handle, id) }
                     resultData = "asked for $id"
+                }
+            }
+            "PHONE" -> answerLater {
+                when (intent.getStringExtra("do")) {
+                    "directions" -> phone.directions(intent.getStringExtra("to").orEmpty(), intent.getStringExtra("mode").orEmpty()).toString()
+                    "play" -> phone.play(intent.getStringExtra("q").orEmpty(), intent.getStringExtra("app").orEmpty()).toString()
+                    "media" -> phone.control(com.macedonga.visor.core.assistant.MediaControl.valueOf(intent.getStringExtra("c").orEmpty().uppercase())).toString()
+                    else -> phone.nowPlaying().toString()
                 }
             }
             "ASK" -> answerLater { withTimeoutOrNull(25_000) { assistant.ask(intent.getStringExtra("q") ?: "Say hello.") } ?: "no answer in 25 s" }

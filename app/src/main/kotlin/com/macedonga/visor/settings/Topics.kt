@@ -2,6 +2,7 @@ package com.macedonga.visor.settings
 
 import androidx.compose.ui.graphics.vector.ImageVector
 import com.macedonga.visor.R
+import com.macedonga.visor.features.Feature
 import com.macedonga.visor.ui.VisorIcons
 
 /** The curated settings, by what they are about. [keys] are the glasses' own, in the order a page shows them. */
@@ -91,6 +92,7 @@ fun tileIcon(id: String): ImageVector = when (id) {
     "g:sg_headphone_mode_enabled", "g:spatial_media_enabled" -> VisorIcons.Speaker
     else -> when {
         id.startsWith("g:") -> Topic.of(id.removePrefix("g:"))?.icon ?: VisorIcons.Sliders
+        id.startsWith("f:") -> Feature.byId(id.removePrefix("f:"))?.icon ?: VisorIcons.Sliders
         else -> VisorIcons.Sliders
     }
 }

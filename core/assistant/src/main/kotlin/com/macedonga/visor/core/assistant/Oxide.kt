@@ -37,9 +37,12 @@ internal const val MT_ENVELOPE_ACK = 9001
 internal const val EV_FINAL_TRANSCRIPTION = 52
 internal const val EV_VOICE_ACTION_RESPONSE = 53
 internal const val EV_FULFILLMENT_REQUEST = 57
+internal const val EV_ACTION_FULFILLMENT_REQUEST = 55
+internal const val EV_MWA_VOICE_INTERACTION_CLOSE_REQUEST = 59
 internal const val EV_MWA_VOICE_INTERACTION_COMPLETE = 60
 internal const val EV_KEEP_MWA_ALIVE = 63
 internal const val EV_MMAI_INTERACTION_REQUEST = 65
+internal const val EV_ACTION_FULFILLMENT_RESPONSE = 67
 internal const val EV_START_OF_USER_SPEECH = 71
 internal const val EV_REMOTE_IMAGE_CAPTURE_REQUEST = 73
 internal const val EV_REMOTE_IMAGE_CAPTURE_RESPONSE = 74
@@ -146,9 +149,9 @@ internal fun varm(interactionId: String, transcript: String, text: String, onGla
 
 /**
  * ev60 MwaVoiceInteractionComplete with a fulfillmentResult the glasses speak themselves: ttsMessage, fulfillment
- * type 1 (server) and nothing streaming. Status 1000 is success.
+ * type 1 (server), requiresAnswer when they should listen for a reply, and nothing streaming. Status 1000 is success.
  */
-internal fun interactionComplete(interactionId: String, text: String): ByteArray {
-    val result = ThriftWriter().str(1, text).i32(2, 1).bool(3, false).bool(4, false).bool(7, false).bool(8, false).done()
+internal fun interactionComplete(interactionId: String, text: String, expectsAnswer: Boolean = false): ByteArray {
+    val result = ThriftWriter().str(1, text).i32(2, 1).bool(3, expectsAnswer).bool(4, false).bool(7, false).bool(8, false).done()
     return ThriftWriter().str(1, interactionId).i32(2, 1000).str(3, "").struct(4, result).done()
 }

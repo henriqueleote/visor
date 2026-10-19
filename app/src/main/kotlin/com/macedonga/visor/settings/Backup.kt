@@ -106,7 +106,7 @@ class Backups @Inject constructor(
                 "live",
                 JSONObject()
                     .put("manual", l.manual).put("quality", l.quality.name).put("bitrate", l.bitrate).put("frameRate", l.frameRate)
-                    .put("band", l.band).put("overlays", JSONArray(l.overlays.map { it.name })).put("replaySeconds", l.replaySeconds)
+                    .put("overlays", JSONArray(l.overlays.map { it.name })).put("replaySeconds", l.replaySeconds)
                     .put("listen", l.listen).put("rtmpUrl", l.rtmpUrl).put("rtmpCodec", l.rtmpCodec.name),
             )
             .put("pins", JSONArray(pins.ids.value))
@@ -180,7 +180,6 @@ class Backups @Inject constructor(
                     quality = runCatching { StreamQuality.valueOf(o.getString("quality")) }.getOrDefault(it.quality),
                     bitrate = o.optInt("bitrate", it.bitrate),
                     frameRate = o.optInt("frameRate", it.frameRate),
-                    band = o.optInt("band", it.band),
                     overlays = o.optJSONArray("overlays")?.let { a -> (0 until a.length()).mapNotNull { i -> runCatching { LiveOverlay.valueOf(a.getString(i)) }.getOrNull() }.toSet() } ?: it.overlays,
                     replaySeconds = o.optInt("replaySeconds", it.replaySeconds),
                     listen = o.optBoolean("listen", it.listen),

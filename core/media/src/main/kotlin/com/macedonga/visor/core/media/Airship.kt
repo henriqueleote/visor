@@ -24,6 +24,9 @@ const val NAMESPACE_MEDIA = "namespace_media"
 /** A bug report zip, sent after a REQUEST_BUG_REPORT on svc7006. */
 const val NAMESPACE_BUGREPORT = "bugreport"
 
+/** Shares, and on some pairs the low-res photo for a question, which the Meta app offloads to its assistant. */
+const val NAMESPACE_SHARING = "Sharing"
+
 private val ACCEPTED = setOf(NAMESPACE_MEDIA, NAMESPACE_BUGREPORT)
 
 // Refused all the time, so not worth a line each.

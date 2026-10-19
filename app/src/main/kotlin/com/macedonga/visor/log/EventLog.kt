@@ -42,6 +42,7 @@ class EventLog @Inject constructor(
     tools: com.macedonga.visor.core.assistant.mcp.McpHub,
     timers: Timers,
     hearing: Hearing,
+    phone: com.macedonga.visor.phone.PhoneActions,
 ) {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
@@ -96,6 +97,9 @@ class EventLog @Inject constructor(
         }
         scope.launch {
             hearing.notes.collect { add("Hearing: $it") }
+        }
+        scope.launch {
+            phone.notes.collect { add("Phone: $it") }
         }
         scope.launch {
             assistant.wakeWord.notes.collect { add(it) }

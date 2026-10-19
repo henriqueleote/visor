@@ -52,6 +52,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.macedonga.visor.R
 import com.macedonga.visor.core.assistant.ANSWER_TOO_LATE
+import com.macedonga.visor.core.assistant.ON_GLASSES
 import com.macedonga.visor.core.assistant.TurnRecord
 import com.macedonga.visor.core.assistant.TurnSource
 import com.macedonga.visor.core.design.Visor
@@ -229,6 +230,7 @@ internal fun Exchange(turn: TurnRecord, shown: Int, onLongPress: () -> Unit, onP
 private fun Answer(turn: TurnRecord, shown: Int) {
     val colors = Visor.colors
     when {
+        turn.problem == ON_GLASSES -> Text(stringResource(R.string.meta_ai_on_glasses), style = Visor.type.label, color = colors.textTertiary)
         turn.problem.isNotEmpty() && turn.problem != ANSWER_TOO_LATE ->
             Text(stringResource(R.string.meta_ai_no_answer, turn.problem), style = Visor.type.label, color = colors.textTertiary)
         turn.answer.isEmpty() -> Thinking()

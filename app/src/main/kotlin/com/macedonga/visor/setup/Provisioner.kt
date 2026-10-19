@@ -11,6 +11,7 @@ import com.macedonga.visor.core.identity.IdentityBundle
 import com.macedonga.visor.core.identity.IdentityStore
 import com.macedonga.visor.core.identity.nowIso
 import com.macedonga.visor.core.identity.provision.ProvisionStep
+import com.macedonga.visor.core.identity.provision.WrongOwnerError
 import com.macedonga.visor.core.identity.provision.provision
 import com.macedonga.visor.core.media.MediaImport
 import com.macedonga.visor.core.transport.LeKeeper
@@ -46,7 +47,7 @@ class Provisioner @Inject constructor(
         data object Idle : Status
         data class Running(val address: String, val reached: List<ProvisionStep>) : Status
         data class Done(val target: GlassesTarget, val reusedKey: Boolean) : Status
-        data class Failed(val address: String, val reached: List<ProvisionStep>, val reason: String) : Status
+        data class Failed(val address: String, val reached: List<ProvisionStep>, val reason: String, val wrongOwner: Boolean = false) : Status
     }
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
@@ -92,7 +93,7 @@ class Provisioner @Inject constructor(
             } catch (error: Exception) {
                 val reason = error.message ?: error.javaClass.simpleName
                 log.add("Setup failed: $reason")
-                _status.value = Status.Failed(address, reached.toList(), reason)
+                _status.value = Status.Failed(address, reached.toList(), reason, wrongOwner = error is WrongOwnerError)
             }
         }
     }

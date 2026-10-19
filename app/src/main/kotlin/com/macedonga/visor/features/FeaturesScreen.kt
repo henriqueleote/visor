@@ -40,6 +40,9 @@ import androidx.navigation3.runtime.NavKey
 import com.macedonga.visor.ConversationFocusKey
 import com.macedonga.visor.HearingCorrectionKey
 import com.macedonga.visor.R
+import com.macedonga.visor.core.assistant.Hearing
+import com.macedonga.visor.core.assistant.HearingMode
+import com.macedonga.visor.core.assistant.HearingRun
 import com.macedonga.visor.core.design.Visor
 import com.macedonga.visor.core.media.ConfigState
 import com.macedonga.visor.core.media.GlassesConfig
@@ -49,6 +52,7 @@ import com.macedonga.visor.settings.Footnote
 import com.macedonga.visor.settings.KeyLine
 import com.macedonga.visor.settings.LocalHost
 import com.macedonga.visor.settings.NavRow
+import com.macedonga.visor.settings.Pins
 import com.macedonga.visor.settings.Rows
 import com.macedonga.visor.settings.SIDE
 import com.macedonga.visor.settings.SectionLabel
@@ -82,7 +86,6 @@ fun LazyListScope.featureSection(topic: Topic, open: (NavKey) -> Unit, heading: 
 @Composable
 private fun FeatureSection(features: List<Feature>, open: (NavKey) -> Unit, heading: Boolean, model: FeaturesModel = hiltViewModel()) {
     val state by model.features.state.collectAsStateWithLifecycle()
-    val config by model.config.state.collectAsStateWithLifecycle()
     val host = LocalHost.current
     var details by remember { mutableStateOf<Feature?>(null) }
     // Meta's switches come in a short report: read once the glasses are there.
@@ -103,11 +106,77 @@ private fun FeatureSection(features: List<Feature>, open: (NavKey) -> Unit, head
         )
         state.problem?.let { Footnote(stringResource(R.string.features_problem, it), Visor.colors.signal) }
     }
-    details?.let { f ->
-        FeatureSheet(
-            f, state.standings[f] ?: Standing.UNKNOWN, on = state.wanted[f] == true, config = config, settings = model.settings,
-            toggle = { model.features.set(f, it) }, onDismiss = { details = null },
-        )
+    details?.let { FeatureDetails(it, onDismiss = { details = null }) }
+}
+
+/** [feature]'s sheet, from its row or its tile. */
+@Composable
+fun FeatureDetails(feature: Feature, onDismiss: () -> Unit, model: FeaturesModel = hiltViewModel()) {
+    val state by model.features.state.collectAsStateWithLifecycle()
+    val config by model.config.state.collectAsStateWithLifecycle()
+    FeatureSheet(
+        feature, state.standings[feature] ?: Standing.UNKNOWN, on = state.wanted[feature] == true, config = config, settings = model.settings,
+        toggle = { model.features.set(feature, it) }, onDismiss = onDismiss,
+    )
+}
+
+/** A pinned feature as its tile shows it, and what a tap on it does. */
+class FeatureFace(val title: String, val state: String, val on: Boolean, val busy: Boolean, val act: () -> Unit)
+
+/**
+ * [feature] on a quick tile. Focus and correction start, stop and resume from it, and open their page while they
+ * cannot; the others turn on and off as their row does.
+ */
+@Composable
+fun featureFace(feature: Feature, features: Features, hearing: Hearing, open: (NavKey) -> Unit): FeatureFace {
+    val host = LocalHost.current
+    val state by features.state.collectAsStateWithLifecycle()
+    val standing = state.standings[feature] ?: Standing.UNKNOWN
+    val title = stringResource(feature.title)
+    if (feature.page) {
+        val now by hearing.state.collectAsStateWithLifecycle()
+        val tested by features.tested.collectAsStateWithLifecycle()
+        val focus = feature == Feature.CONVERSATION_FOCUS
+        val modes = if (focus) setOf(HearingMode.FOCUS, HearingMode.UNSET) else setOf(HearingMode.CORRECTION, HearingMode.CORRECTION_NARROW)
+        val run = if (now.mode in modes) now.run else HearingRun.OFF
+        val paused = run == HearingRun.PAUSED || run == HearingRun.PAUSED_BY_USER
+        val blocker = when {
+            standing == Standing.UNKNOWN -> R.string.settings_not_read
+            standing != Standing.ON -> R.string.cf_now_locked
+            !focus && feature in state.restart -> R.string.features_restart_title
+            !focus && !(now.fitted ?: tested) -> R.string.hc_now_untested
+            else -> null
+        }
+        val words = blocker ?: when {
+            run == HearingRun.ON -> R.string.sum_on
+            paused -> R.string.cf_now_paused
+            else -> R.string.sum_off
+        }
+        return FeatureFace(title, stringResource(words), on = run == HearingRun.ON, busy = false) {
+            when {
+                blocker != null -> open(pageOf(feature))
+                run == HearingRun.ON -> hearing.stop()
+                paused -> hearing.resume()
+                focus -> features.startFocus()
+                else -> hearing.startCorrection()
+            }
+        }
+    }
+    val on = state.wanted[feature] == true
+    val busy = standing == Standing.SENDING || standing == Standing.CHECKING
+    val words = when (standing) {
+        Standing.UNKNOWN -> R.string.settings_not_read
+        Standing.PARTLY -> R.string.tile_partly
+        Standing.REFUSED -> R.string.tile_refused
+        Standing.ON -> if (feature in state.restart) R.string.features_restart_title else R.string.sum_on
+        else -> if (on) R.string.sum_on else R.string.sum_off
+    }
+    val readFirst = stringResource(R.string.features_read_first)
+    return FeatureFace(title, stringResource(words), on = standing == Standing.ON, busy) {
+        when {
+            feature.needsConfig && !state.configRead -> host.notice.show(readFirst)
+            !busy -> features.set(feature, !on)
+        }
     }
 }
 
@@ -226,9 +295,11 @@ private fun FeatureSheet(
                 Text(stringResource(R.string.features_changes_restart), style = Visor.type.label, color = Visor.colors.textSecondary, modifier = Modifier.padding(top = 6.dp))
             }
         }
-        if (!feature.page) {
-            Row(Modifier.fillMaxWidth().padding(horizontal = SIDE).padding(top = 22.dp)) {
-                Spacer(Modifier.weight(1f))
+        Row(Modifier.fillMaxWidth().padding(horizontal = SIDE).padding(top = 22.dp)) {
+            val pin = Pins.feature(feature.id)
+            ActionPill(stringResource(if (host.pins.has(pin)) R.string.settings_unpin else R.string.settings_pin), { host.pins.toggle(pin); onDismiss() }, quiet = true)
+            Spacer(Modifier.weight(1f))
+            if (!feature.page) {
                 ActionPill(
                     stringResource(if (on) R.string.features_turn_off else R.string.features_turn_on),
                     {

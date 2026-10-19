@@ -42,6 +42,8 @@ import com.macedonga.visor.core.settings.offeredOn
 import com.macedonga.visor.core.settings.protectedReason
 import com.macedonga.visor.core.settings.same
 import com.macedonga.visor.core.settings.unitSuffix
+import com.macedonga.visor.features.Feature
+import com.macedonga.visor.features.FeatureDetails
 import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalTime
@@ -322,6 +324,10 @@ private fun TimestampPicker(c: Control.Timestamp, value: String?, write: (String
 internal fun SettingDetails(id: String, onDismiss: () -> Unit) {
     val host = LocalHost.current
     val pinned = host.pins.has(id)
+    if (id.startsWith("f:")) {
+        Feature.byId(id.removePrefix("f:"))?.let { FeatureDetails(it, onDismiss) }
+        return
+    }
     if (id.startsWith("v:")) {
         val toggle = host.toggles.byId(id.removePrefix("v:")) ?: return
         VisorSheet(onDismiss) {

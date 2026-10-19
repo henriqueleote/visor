@@ -4,9 +4,11 @@ import android.Manifest
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Text
@@ -21,13 +23,21 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.core.app.NotificationManagerCompat
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import com.macedonga.visor.R
+import com.macedonga.visor.core.connection.GlassesConnection
+import com.macedonga.visor.core.connection.GlassesLink
 import com.macedonga.visor.core.media.wifiDirectAllowed
 import com.macedonga.visor.core.media.wifiDirectPermissions
 import com.macedonga.visor.core.design.Visor
 import com.macedonga.visor.gallery.allows
 import com.macedonga.visor.notify.MirrorListener
+import com.macedonga.visor.phone.associateCompanion
+import com.macedonga.visor.phone.companionAssociated
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
 
 /** Something Visor asks of the phone, why, and how to grant it. */
 enum class Need(val title: Int, val why: Int) {
@@ -41,6 +51,9 @@ enum class Need(val title: Int, val why: Int) {
     /** Location while Visor is in the background: Android asks it on its own, once [LOCATION] is given. */
     LOCATION_ALWAYS(R.string.access_location_always, R.string.access_location_always_why),
     WIFI(R.string.access_wifi, R.string.access_wifi_why),
+
+    /** The glasses as Visor's companion device, granted in Android's own dialog. */
+    COMPANION(R.string.access_companion, R.string.access_companion_why),
     ;
 
     fun granted(context: Context): Boolean = when (this) {
@@ -52,6 +65,7 @@ enum class Need(val title: Int, val why: Int) {
         LOCATION -> context.allows(Manifest.permission.ACCESS_FINE_LOCATION)
         LOCATION_ALWAYS -> context.allows(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
         WIFI -> wifiDirectAllowed(context)
+        COMPANION -> !context.packageManager.hasSystemFeature(PackageManager.FEATURE_COMPANION_DEVICE_SETUP) || companionAssociated(context)
     }
 
     /** The runtime permissions to ask for next, or empty when only a system page can grant it. */
@@ -67,14 +81,21 @@ enum class Need(val title: Int, val why: Int) {
         else LOCATION.ask(context)
         // On Android 17 Wi-Fi Direct also wants the local network.
         WIFI -> wifiDirectPermissions
+        COMPANION -> emptyArray()
     }
 }
 
 fun missingNeeds(context: Context): List<Need> = Need.entries.filter { !it.granted(context) }
 
+@HiltViewModel
+class PhoneAccessModel @Inject constructor(private val connection: GlassesConnection) : ViewModel() {
+    /** The glasses' Bluetooth address, once they are claimed. */
+    fun address(): String? = (connection.state.value.target?.link as? GlassesLink.Bluetooth)?.address
+}
+
 /** Everything Visor asks of the phone, in one place: what is given, why each is wanted, one tap for the rest. */
 @Composable
-fun PhoneAccessScreen() {
+fun PhoneAccessScreen(model: PhoneAccessModel = hiltViewModel()) {
     val context = LocalContext.current
     var tick by remember { mutableIntStateOf(0) }
     var asked by remember { mutableStateOf<Need?>(null) }
@@ -84,6 +105,7 @@ fun PhoneAccessScreen() {
         if (need != null && !need.granted(context) && need.ask(context).isNotEmpty() && it.values.none { ok -> ok }) openAppPage(context)
         tick++
     }
+    val companion = rememberLauncherForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { tick++ }
     LifecycleResumeEffect(Unit) {
         tick++
         onPauseOrDispose { }
@@ -102,7 +124,13 @@ fun PhoneAccessScreen() {
                                 ActionPill(stringResource(R.string.access_allow), {
                                     asked = need
                                     val ask = need.ask(context)
-                                    if (ask.isEmpty()) openListenerPage(context) else launcher.launch(ask)
+                                    when {
+                                        need == Need.COMPANION -> associateCompanion(
+                                            context, model.address(), { companion.launch(IntentSenderRequest.Builder(it).build()) }, { tick++ },
+                                        )
+                                        ask.isEmpty() -> openListenerPage(context)
+                                        else -> launcher.launch(ask)
+                                    }
                                 }, modifier = Modifier.padding(start = 12.dp))
                             }
                         }

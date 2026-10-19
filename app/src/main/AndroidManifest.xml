@@ -25,10 +25,13 @@
     <uses-permission android:name="android.permission.READ_CONTACTS" />
     <!-- The phone's speech recogniser requires it, though Visor hands it the glasses' microphone, never the phone's. -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
 
     <uses-feature android:name="android.hardware.bluetooth" android:required="true" />
+    <uses-feature android:name="android.software.companion_device_setup" android:required="false" />
 
-    <!-- The settings the phone app fills in: the default SMS app and the media apps on this phone. -->
+    <!-- The settings the phone app fills in: the default SMS app and the media apps on this phone. Also the map and
+         music apps the assistant opens. -->
     <queries>
         <intent>
             <action android:name="android.intent.action.SENDTO" />
@@ -39,6 +42,13 @@
         </intent>
         <intent>
             <action android:name="android.intent.action.MEDIA_BUTTON" />
+        </intent>
+        <intent>
+            <action android:name="android.media.action.MEDIA_PLAY_FROM_SEARCH" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="geo" />
         </intent>
         <!-- The apps whose notifications can be muted for the glasses. -->
         <intent>

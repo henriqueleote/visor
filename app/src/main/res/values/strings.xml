@@ -226,8 +226,6 @@
     <string name="live_settings_resolution">Resolution</string>
     <string name="live_settings_bitrate">Bitrate</string>
     <string name="live_settings_frame_rate">Frame rate</string>
-    <string name="live_settings_band">Wi-Fi band</string>
-    <string name="live_settings_band_sub">At 5 GHz the glasses\' Wi-Fi crashes within seconds of streaming; 2.4 GHz holds.</string>
     <string name="live_settings_replay">Instant replay</string>
     <string name="live_settings_replay_sub">How much of the live view Visor keeps in memory, ready to save.</string>
     <string name="live_settings_on_picture">On the picture</string>
@@ -276,6 +274,7 @@
     <string name="meta_ai_new">New conversation</string>
     <string name="meta_ai_remembered">Remembered · %1$s</string>
     <string name="meta_ai_no_answer">No answer · %1$s</string>
+    <string name="meta_ai_on_glasses">Done on the glasses</string>
     <string name="meta_ai_too_late">Answered after the glasses had moved on</string>
     <string name="meta_ai_phone">Phone</string>
     <string name="meta_ai_live_ai">Live AI</string>
@@ -351,6 +350,8 @@
     <string name="settings_diagnostics_sub">The link, the key and what the glasses report</string>
     <string name="settings_event_log_sub">Everything the link did, newest last</string>
     <string name="tiles_hint">Hold any setting to pin it here</string>
+    <string name="tile_partly">Partly on</string>
+    <string name="tile_refused">Refused</string>
 
     <string name="topic_meta_ai">Meta AI</string>
     <string name="topic_language">Language and voice</string>
@@ -546,6 +547,8 @@
     <string name="access_location_always_why">So the place is noted also with Visor closed. Choose “Allow all the time”.</string>
     <string name="access_wifi">Nearby Wi-Fi</string>
     <string name="access_wifi_why">For imports and the live view over Wi-Fi Direct.</string>
+    <string name="access_companion">Companion device</string>
+    <string name="access_companion_why">So the assistant can open directions and music on the phone while Visor is in the background.</string>
     <string name="access_foot">Turned down for good, Android opens Visor\'s own page instead.</string>
 
     <string name="advanced_title">Advanced settings</string>
@@ -648,6 +651,7 @@
     <string name="onboard_new_key">Any other phone or app that held them has lost them.</string>
     <string name="onboard_open">Open Visor</string>
     <string name="onboard_failed">Not set up</string>
+    <string name="onboard_wrong_owner">These glasses belong to another Meta account. Log in with the one that set them up in the Meta AI app, or reset the glasses.</string>
     <string name="onboard_failed_untouched">Nothing on the glasses changes before the last step.</string>
     <string name="onboard_try_again">Try again</string>
     <string name="onboard_choose_again">Choose again</string>
@@ -774,7 +778,7 @@
     <string name="features_turn_off">Turn off</string>
     <string name="feature_cf">Conversation focus</string>
     <string name="feature_cf_about">Makes the person in front of you louder and clearer in a noisy place.</string>
-    <string name="feature_cf_use">Start it from its page, by voice, or with tap and hold.</string>
+    <string name="feature_cf_use">Start it from its page or by voice.</string>
     <string name="feature_spatial">Spatial audio</string>
     <string name="feature_spatial_about">Music and videos sound immersive, as if they played around you rather than in your ears.</string>
     <string name="feature_spatial_use">Play music or a video. Turn it off here for stereo.</string>
@@ -782,7 +786,7 @@
     <string name="feature_follow_ups_about">After more kinds of answers the assistant keeps listening, so you can go on without “Hey Meta”. A sound says when it stops.</string>
     <string name="feature_follow_ups_use">Ask something, then keep talking after the answer.</string>
     <string name="cf_lede">The glasses\' microphones pick out the voice of the person in front of you, and the speakers bring it closer.</string>
-    <string name="cf_allow_note">Meta offers it only where its app runs the introduction, and all the glasses check is that the introduction was done. Visor marks it done.</string>
+    <string name="cf_allow_note">Meta offers it only where its app runs the introduction and grants access. Visor marks the introduction done and grants access.</string>
     <string name="cf_start">Start it</string>
     <string name="cf_hold">Tap and hold starts it</string>
     <string name="cf_hold_on">Tap and hold the touchpad to turn it on, again to turn it off.</string>
@@ -808,6 +812,7 @@
     <string name="cf_now_paused">Paused</string>
     <string name="cf_now_off">Off</string>
     <string name="cf_now_off_sub">Start it here, or tap and hold the touchpad.</string>
+    <string name="cf_now_off_here">Start it here.</string>
     <string name="cf_now_volume">voice %1$s</string>
     <string name="cf_stop">Stop</string>
     <string name="cf_resume">Resume</string>
@@ -821,6 +826,7 @@
     <string name="cf_paused_timeout">Paused after a while unused.</string>
     <string name="cf_refused">The glasses did not start it.</string>
     <string name="cf_refused_setup">The glasses want the setup done: allow it below.</string>
+    <string name="cf_refused_access">The glasses want early access: allow it below.</string>
     <string name="cf_refused_region">The glasses say it is not offered here.</string>
     <string name="cf_refused_device">These glasses cannot run it.</string>
     <string name="cf_refused_bluetooth">It needs the glasses connected to the phone.</string>
@@ -903,4 +909,6 @@
     <string name="hct_failed_tone">The glasses did not play the tone.</string>
     <string name="hct_failed_fit">The glasses could not make the profile.</string>
     <string name="hct_retry">Try again</string>
+    <string name="phone_directions">Directions to %1$s</string>
+    <string name="phone_play">Play %1$s</string>
 </resources>

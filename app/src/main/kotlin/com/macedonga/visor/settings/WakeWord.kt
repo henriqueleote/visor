@@ -65,6 +65,9 @@ import com.macedonga.visor.stage.shake
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -133,13 +136,29 @@ class WakeWordModel @Inject constructor(
     fun enter() {
         clips.clear()
         _step.value = WakeStep.Phrase
+        // A session left open (the app killed, a reinstall) keeps the glasses from waking on "Hey Meta".
+        (prefs.getStringSet(OPEN, null).orEmpty() - setOfNotNull(session)).forEach(::close)
     }
 
     /** Leaving mid-enrolment closes the session, so the glasses wake on the phrase again. */
     fun leave() {
         val open = session ?: return
         session = null
-        viewModelScope.launch { assistant.wakeWord.end(open) }
+        close(open)
+    }
+
+    // Not on viewModelScope: leaving clears the model, and the close must still go out. One that did not stays listed.
+    private fun close(id: String) {
+        lasting.launch {
+            if (assistant.wakeWord.end(id)) mark(id, open = false)
+        }
+    }
+
+    private fun opened(id: String) = mark(id, open = true)
+
+    private fun mark(id: String, open: Boolean) = synchronized(prefs) {
+        val ids = prefs.getStringSet(OPEN, null).orEmpty()
+        prefs.edit().putStringSet(OPEN, if (open) ids + id else ids - id).apply()
     }
 
     override fun onCleared() = leave()
@@ -152,8 +171,9 @@ class WakeWordModel @Inject constructor(
         val text = _phrase.value
         if (text.length < MIN_LETTERS) return
         clips.clear()
+        leave()
         viewModelScope.launch {
-            session = assistant.wakeWord.begin(text) ?: run {
+            session = assistant.wakeWord.begin(text)?.also(::opened) ?: run {
                 _step.value = WakeStep.Failed(null, R.string.ww_no_link)
                 return@launch
             }
@@ -180,8 +200,7 @@ class WakeWordModel @Inject constructor(
         _step.value = WakeStep.Enrolling
         val text = _phrase.value
         val result = assistant.wakeWord.enroll(text, clips.toList())
-        session?.let { assistant.wakeWord.end(it) }
-        session = null
+        leave()
         if (result?.success == true) {
             val name = result.wakeword.ifEmpty { text }
             remember(name)
@@ -192,6 +211,7 @@ class WakeWordModel @Inject constructor(
     }
 
     fun retry() {
+        leave()
         clips.clear()
         _step.value = WakeStep.Phrase
     }
@@ -202,6 +222,8 @@ class WakeWordModel @Inject constructor(
         // A quarter second of 16 kHz 16-bit audio: anything shorter is no phrase.
         private const val MIN_BYTES = 8_000
         private const val ENROLLED = "enrolled"
+        private const val OPEN = "open_sessions"
+        private val lasting = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     }
 }
 

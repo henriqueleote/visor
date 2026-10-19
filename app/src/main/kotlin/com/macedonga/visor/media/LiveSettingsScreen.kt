@@ -17,12 +17,8 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.macedonga.visor.R
 import com.macedonga.visor.core.design.Visor
-import com.macedonga.visor.core.media.BAND_2GHZ
-import com.macedonga.visor.core.media.BAND_5GHZ
-import com.macedonga.visor.core.media.BAND_AUTO
 import com.macedonga.visor.core.media.LiveOverlay
 import com.macedonga.visor.core.media.StreamQuality
-import com.macedonga.visor.core.media.bandWords
 import com.macedonga.visor.settings.Footnote
 import com.macedonga.visor.settings.MONO
 import com.macedonga.visor.settings.PillsRow
@@ -61,12 +57,6 @@ fun LiveSettingsScreen(model: LiveViewModel = hiltViewModel()) {
                     if (settings.manual) row {
                         PillsRow(stringResource(R.string.live_settings_frame_rate), listOf(24, 30).map { it to "$it fps" }, settings.frameRate, { f -> model.update { it.copy(frameRate = f) } })
                     } else null,
-                    {
-                        PillsRow(
-                            stringResource(R.string.live_settings_band), listOf(BAND_2GHZ, BAND_5GHZ, BAND_AUTO).map { it to bandWords(it) }, settings.band,
-                            { b -> model.update { it.copy(band = b) } }, sub = stringResource(R.string.live_settings_band_sub),
-                        )
-                    },
                 )
             }
         }
