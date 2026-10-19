@@ -71,6 +71,7 @@ class NearbyGlasses @Inject constructor(@ApplicationContext private val context:
                 if (advert?.product == PRODUCT_BAND) return
                 val device = result.device
                 val name = record.deviceName ?: runCatching { device.name }.getOrNull() ?: productName(advert?.product)
+                if (BAND_NAME.containsMatchIn(name)) return
                 val pair = NearbyPair(device.address, name, result.rssi, advert?.pairing == true, device.bondState == BluetoothDevice.BOND_BONDED)
                 synchronized(heard) { heard[device.address] = pair to SystemClock.elapsedRealtime() }
                 publish()
@@ -98,7 +99,7 @@ class NearbyGlasses @Inject constructor(@ApplicationContext private val context:
     @SuppressLint("MissingPermission")
     fun bonded(): List<NearbyPair> = runCatching {
         adapter?.bondedDevices.orEmpty()
-            .filter { d -> d.name?.let { GLASSES_NAME.containsMatchIn(it) } == true }
+            .filter { d -> d.name?.let { GLASSES_NAME.containsMatchIn(it) && !BAND_NAME.containsMatchIn(it) } == true }
             .map { NearbyPair(it.address, it.name, null, pairing = false, bonded = true) }
     }.getOrDefault(emptyList())
 
@@ -157,5 +158,8 @@ class NearbyGlasses @Inject constructor(@ApplicationContext private val context:
         const val BOND_MS = 90_000L
         const val POLL_MS = 400L
         val GLASSES_NAME = Regex("ray-?ban|meta|oakley|stories", RegexOption.IGNORE_CASE)
+
+        // The Neural Band, "Meta Band 0064": set up from the Display's settings, never as glasses.
+        val BAND_NAME = Regex("^meta band", RegexOption.IGNORE_CASE)
     }
 }

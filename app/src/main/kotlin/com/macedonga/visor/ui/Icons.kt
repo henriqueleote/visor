@@ -45,6 +45,9 @@ object VisorIcons {
 
     val Case = icon("M6 8h12a4 4 0 0 1 0 8H6a4 4 0 0 1 0-8z", "M2.5 12h19")
 
+    /** The Neural Band: the strap seen edge on, the pod on top. */
+    val Band = icon("M5 12.5a7 4.5 0 1 0 14 0a7 4.5 0 1 0-14 0", "M9.8 6.3h4.4a1 1 0 0 1 1 1v1.2H8.8V7.3a1 1 0 0 1 1-1z")
+
     /** A turn back round the clock: what just happened. */
     val Replay = icon("M5.2 13.5A7 7 0 1 0 7 7.1", "M6.6 3.6l.4 3.5 3.5-.4")
 

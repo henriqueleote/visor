@@ -172,6 +172,9 @@ class SettingsViewModel @Inject constructor(
     val features: com.macedonga.visor.features.Features,
     val lastSeen: com.macedonga.visor.home.LastSeen,
     val hearing: com.macedonga.visor.core.assistant.Hearing,
+    val band: com.macedonga.visor.band.BandLink,
+    val bands: com.macedonga.visor.band.Bands,
+    val bandSetup: com.macedonga.visor.band.BandSetup,
 ) : ViewModel()
 
 /**
@@ -242,7 +245,9 @@ fun SettingsScreen(open: (NavKey) -> Unit, model: SettingsViewModel = hiltViewMo
                 for ((i, card) in Topic.CARDS.withIndex()) {
                     item(key = "card-$i") {
                         Column(Modifier.padding(top = if (i == 0) 18.dp else 14.dp)) {
-                            for (topic in card) NavRow(topic.icon, stringResource(topic.title), summary(topic, model, state), onClick = { open(placeOf(topic)) })
+                            for (topic in card.filter { it.shownOn(state.product) }) {
+                                NavRow(topic.icon, stringResource(topic.title), summary(topic, model, state), onClick = { open(placeOf(topic)) })
+                            }
                         }
                     }
                 }
@@ -556,13 +561,19 @@ private fun summary(topic: Topic, model: SettingsViewModel, state: SettingsState
             shown("capture_mode")?.let { stringResource(R.string.sum_controls_press, it) },
             shown("tap_and_hold_mapping")?.let { stringResource(R.string.sum_controls_hold, it) },
         ).joinToString(" · ")
+        Topic.BAND -> {
+            val band by model.band.state.collectAsStateWithLifecycle()
+            val pair by model.connection.pair.collectAsStateWithLifecycle()
+            if (model.bands.forGlasses(pair) == null) stringResource(R.string.band_none)
+            else listOfNotNull(band.battery?.let { batteryWords(it, band.charging) }, band.leftHanded?.let { wristWords(it) }).joinToString(" · ")
+        }
         Topic.SOUND -> listOfNotNull(
             shown("notification_volume")?.let { stringResource(R.string.sum_sound_volume, it) },
             stringResource(R.string.sum_headphone).takeIf { isOn("sg_headphone_mode_enabled") == true },
         ).joinToString(" · ")
         Topic.HEARING -> {
             val features by model.features.state.collectAsStateWithLifecycle()
-            Feature.entries.filter { it.topic == Topic.HEARING && features.standings[it] == Standing.ON }
+            Feature.entries.filter { it.topic == Topic.HEARING && it.on(features.product) && features.standings[it] == Standing.ON }
                 .map { stringResource(it.title) }.joinToString(" · ").ifEmpty { stringResource(R.string.sum_all_off) }
         }
         Topic.WEAR -> listOfNotNull(

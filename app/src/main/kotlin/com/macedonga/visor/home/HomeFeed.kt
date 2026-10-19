@@ -138,6 +138,9 @@ fun StatusPill(
     onAllow: () -> Unit,
     onSetUp: () -> Unit,
     modifier: Modifier,
+    // The Display's Neural Band, when Visor has read it.
+    band: Int? = null,
+    bandCharging: Boolean = false,
 ) {
     when {
         !allowed -> return Pill(stringResource(R.string.home_allow_bluetooth), onAllow, modifier)
@@ -189,6 +192,11 @@ fun StatusPill(
                     Spacer(Modifier.size(14.dp))
                     Level(VisorIcons.Case, case, critical = false)
                     if (caseCharging) Icon(VisorIcons.Bolt, null, Modifier.padding(start = 2.dp).size(13.dp), tint = colors.textPrimary)
+                }
+                if (band != null) {
+                    Spacer(Modifier.size(14.dp))
+                    Level(VisorIcons.Band, band, critical = band <= 10 && !bandCharging)
+                    if (bandCharging) Icon(VisorIcons.Bolt, null, Modifier.padding(start = 2.dp).size(13.dp), tint = colors.textPrimary)
                 }
             }
         }

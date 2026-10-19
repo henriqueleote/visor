@@ -152,6 +152,8 @@ class HomeViewModel @Inject constructor(
     val looks: Looks,
     val lastSeen: LastSeen,
     val pairs: Pairs,
+    val band: com.macedonga.visor.band.BandLink,
+    val bands: com.macedonga.visor.band.Bands,
 ) : ViewModel() {
     /** The LE link is up: the glasses are right here, whatever RFCOMM says. */
     val nearby = keeper.connected
@@ -566,9 +568,13 @@ fun HomeScreen(
                         modifier = Modifier,
                     )
                 } else {
+                    val band by model.band.state.collectAsStateWithLifecycle()
+                    val bands by model.bands.all.collectAsStateWithLifecycle()
+                    val ours = band.takeIf { b -> b.battery != null && bands.any { it.serial == b.serial && it.glasses == current } }
                     StatusPill(
                         state, mood, lastBattery, paired, allowed, transferring, importProgress, waiting = if (importing) 0 else fresh.size, onImport = onImport,
                         onAllow = { ask.launch(wanted()) }, onSetUp = onSetUp, modifier = Modifier,
+                        band = ours?.battery, bandCharging = ours?.charging == true,
                     )
                 }
                 if (pairs.isNotEmpty()) PairDots(pairs.size + 1, shownIndex, Modifier.padding(top = 12.dp))

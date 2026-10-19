@@ -79,6 +79,10 @@ class GlassesService : Service() {
     @Inject
     lateinit var outside: com.macedonga.visor.outside.Outside
 
+    // Injected so a Display's band is linked while the service runs.
+    @Inject
+    lateinit var band: com.macedonga.visor.band.BandLink
+
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
     private var started = false

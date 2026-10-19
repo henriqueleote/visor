@@ -49,6 +49,7 @@ import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
+import com.macedonga.visor.core.protocol.ServiceId
 import dagger.hilt.components.SingletonComponent
 import java.io.File
 import javax.inject.Singleton
@@ -134,6 +135,7 @@ object ConnectionModule {
         // A Provider, because these need the connection this factory feeds.
         hearing: javax.inject.Provider<Hearing>,
         assistant: javax.inject.Provider<Assistant>,
+        lease: javax.inject.Provider<com.macedonga.visor.band.DeviceLease>,
     ): SessionHostFactory = RealSessionHostFactory(
         transports,
         responders = mapOf(
@@ -144,6 +146,7 @@ object ConnectionModule {
             SVC_GLASSES_PHOTO to photos,
             SVC_TAR to timers,
             SVC_HEARING to Responder { message, mux -> hearing.get().respond(message, mux) },
+            ServiceId.CONN_DEVICE_LEASE.value to Responder { message, mux -> lease.get().respond(message, mux) },
         ),
     )
 
