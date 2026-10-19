@@ -20,6 +20,8 @@ class GlassesSessionHost(private val session: GlassesSession) : SessionHost {
 
     override val trustComplete: Boolean get() = session.trustResult?.complete == true
 
+    override val credentialReceived: Boolean get() = session.trustResult?.rxOk == true
+
     override fun start(scope: CoroutineScope) = session.start(scope)
 
     override suspend fun stop() = session.stop()

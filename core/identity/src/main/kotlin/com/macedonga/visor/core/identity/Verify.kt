@@ -10,6 +10,9 @@ interface SessionProbe {
 
     /** Ask svc100, `peer_build_info`, and say whether anything came back. */
     suspend fun readCanary(): Boolean
+
+    /** Whether the glasses sent their own svc36 credential, whatever they made of ours. */
+    suspend fun credentialReceived(): Boolean = false
 }
 
 class VerificationResult(
@@ -26,10 +29,12 @@ suspend fun verifyBundle(
 ): VerificationResult {
     val trustOk: Boolean
     val canaryAnswered: Boolean
+    val credentialReceived: Boolean
     try {
         val probe = openSession()
         trustOk = probe.runTrust()
         canaryAnswered = probe.readCanary()
+        credentialReceived = probe.credentialReceived()
     } catch (cancellation: CancellationException) {
         // The caller gave up, which is not a verdict about anything.
         throw cancellation
@@ -39,7 +44,7 @@ suspend fun verifyBundle(
         return VerificationResult(Diagnosis.LINK_DOWN, false, false, bundle)
     }
 
-    val verdict = diagnose(trustOk = trustOk, canaryAnswered = canaryAnswered)
+    val verdict = diagnose(trustOk = trustOk, canaryAnswered = canaryAnswered, credentialReceived = credentialReceived)
     return VerificationResult(
         diagnosis = verdict,
         trustOk = trustOk,

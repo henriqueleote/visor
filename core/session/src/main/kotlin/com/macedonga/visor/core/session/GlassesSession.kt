@@ -128,6 +128,8 @@ class GlassesSession(
     /** One connection attempt. */
     private suspend fun runOnce(): Boolean {
         var reachedReady = false
+        // Per attempt: a verdict read after this one fails must not see the last one's exchange.
+        trustResult = null
         publish(LinkStateChanged(LinkState.CONNECTING))
         try {
             transport.connect()
@@ -341,8 +343,9 @@ class GlassesSession(
 
     /** Say which direction of the trust exchange failed. */
     private fun trustFault(result: TrustResult): String {
+        val status = result.refusal?.let { " (status 0x%04x)".format(it) }.orEmpty()
         val faults = buildList {
-            if (!result.txOk) add("the glasses did not accept our credential")
+            if (!result.txOk) add("the glasses did not accept our credential$status")
             if (!result.rxOk) add("the glasses sent no credential of their own")
         }
         return "trust incomplete: ${faults.joinToString(" and ")} " +

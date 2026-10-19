@@ -107,6 +107,7 @@ class IdentityTrustExchange internal constructor(
 
         var txOk = false
         var rxOk = false
+        var refusal: Int? = null
         // Anything this loop does not consume belongs to the caller.
         val deferred = mutableListOf<DataXMessage>()
         try {
@@ -117,7 +118,7 @@ class IdentityTrustExchange internal constructor(
                     when {
                         info.flags.hasError && info.channelId == ourStatusChannel -> {
                             // Consumed either way, as the reference's if/elif chain does.
-                            if (info.errorId == IdentityStatus.SUCCESS.value) txOk = true
+                            if (info.errorId == IdentityStatus.SUCCESS.value) txOk = true else refusal = info.errorId
                         }
 
                         (info.channelId and 0x8000) != 0 &&
@@ -138,7 +139,7 @@ class IdentityTrustExchange internal constructor(
             connection.pushback(deferred)
         }
 
-        return TrustResult(txOk = txOk, rxOk = rxOk)
+        return TrustResult(txOk = txOk, rxOk = rxOk, refusal = refusal)
     }
 }
 
