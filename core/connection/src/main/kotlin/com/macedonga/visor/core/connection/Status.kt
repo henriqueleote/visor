@@ -288,9 +288,17 @@ fun decodeDeviceState(payload: ByteArray): DeviceStatus {
     )
 }
 
-/** Decode any svc28 DeviceState message, full or partial, keeping only what it carries. */
-fun decodeDeviceStateUpdate(messageType: Int, payload: ByteArray): DeviceStateUpdate =
-    DeviceStateUpdate(messageType, DEVICE_STATE_TYPES.getValue(messageType), decodeDeviceStateFull(payload))
+/**
+ * Decode any svc28 DeviceState message, full or partial, keeping only what it carries. The Display sends it wrapped,
+ * HNDeviceState {1: stateCommon, 2: deviceLockState}, and Meta's app unwraps it by device type: [display].
+ */
+fun decodeDeviceStateUpdate(messageType: Int, payload: ByteArray, display: Boolean = false): DeviceStateUpdate =
+    DeviceStateUpdate(messageType, DEVICE_STATE_TYPES.getValue(messageType), decodeDeviceStateFull(if (display) Wire.parse(payload).bytes(1) else payload))
+
+/** Whether a build fingerprint, "Meta/greatwhite/greatwhite:14/...", is a Meta Ray-Ban Display's. */
+fun isDisplayBuild(build: String?): Boolean = build?.split('/')?.getOrNull(2)?.substringBefore(':')?.lowercase() in DISPLAY_DEVICES
+
+private val DISPLAY_DEVICES = setOf("greatwhite")
 
 private fun text(fields: Wire.Fields, number: Int): String =
     String(fields.bytes(number), Charsets.UTF_8)

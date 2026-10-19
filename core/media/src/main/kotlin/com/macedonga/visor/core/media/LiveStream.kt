@@ -13,6 +13,7 @@ import com.macedonga.visor.core.connection.SessionHostFactory
 import com.macedonga.visor.core.connection.subscribeToDeviceStatus
 import com.macedonga.visor.core.connection.DeviceState
 import com.macedonga.visor.core.connection.decodeDeviceStateUpdate
+import com.macedonga.visor.core.connection.isDisplayBuild
 import com.macedonga.visor.core.connection.isDeviceStateType
 import com.macedonga.visor.core.connection.mergeDeviceState
 import com.macedonga.visor.core.identity.IdentityStore
@@ -794,7 +795,7 @@ class LiveStream(
             event.serviceId == 28 && event.messageType == MT_START_APP_RESPONSE ->
                 startAnswer?.complete(Wire.parse(event.payload).varint(1))
             event.serviceId == 28 && isDeviceStateType(event.messageType) -> runCatching {
-                val update = decodeDeviceStateUpdate(event.messageType, event.payload).state
+                val update = decodeDeviceStateUpdate(event.messageType, event.payload, display = isDisplayBuild(connection.state.value.info?.build)).state
                 _device.update { it?.let { base -> mergeDeviceState(base, update) } ?: update }
             }
             // Airship, whose receiver reports for itself; everything else goes in the log.

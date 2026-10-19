@@ -87,6 +87,9 @@ class GlassesConnection(
     private val judged = AtomicBoolean(false)
     private var deadline: Job? = null
 
+    // svc28 state that came before svc100 said which model this is.
+    private val heldStatus = mutableListOf<ServiceData>()
+
     /** Choose a target, open a session on it, and keep the state current until [stop]. */
     fun start(scope: CoroutineScope, override: GlassesTarget? = null) {
         lastScope = scope
@@ -194,13 +197,13 @@ class GlassesConnection(
                 ) {
                     canaryAnswered = true
                     decodeInto(event) { copy(info = decodePeerDeviceInfo(it.payload)) }
+                    heldStatus.forEach(::applyStatus)
+                    heldStatus.clear()
                     judge(host, bundle)
                 }
                 if (event.serviceId == SVC_STATUS && isDeviceStateType(event.messageType)) {
-                    decodeInto(event) {
-                        val update = decodeDeviceStateUpdate(it.messageType, it.payload)
-                        copy(device = mergeDeviceState(device ?: DeviceState(), update.state))
-                    }
+                    // How it is framed depends on the model, which svc100 names: what comes first waits for it.
+                    if (_state.value.info == null && heldStatus.size < HELD_STATUS) heldStatus += event else applyStatus(event)
                 }
                 // Airship's file chunks and the live stream's frames are their responders' business,
                 // and thousands of them would push everything else out of this buffer.
@@ -213,6 +216,11 @@ class GlassesConnection(
         }
     }
 
+    private fun applyStatus(event: ServiceData) = decodeInto(event) {
+        val update = decodeDeviceStateUpdate(it.messageType, it.payload, display = isDisplayBuild(info?.build))
+        copy(device = mergeDeviceState(device ?: DeviceState(), update.state))
+    }
+
     /** Fold a decoded service message into the state, or report why it would not decode. */
     private fun decodeInto(event: ServiceData, apply: GlassesState.(ServiceData) -> GlassesState) {
         try {
@@ -223,6 +231,7 @@ class GlassesConnection(
     }
 
     private fun newAttempt() {
+        heldStatus.clear()
         canaryAnswered = false
         judged.set(false)
         deadline?.cancel()
@@ -285,5 +294,6 @@ class GlassesConnection(
 
         private const val SVC_AIRSHIP = 20
         private const val SVC_MEDIA_STREAMING_CONTROL = 51350
+        private const val HELD_STATUS = 64
     }
 }
