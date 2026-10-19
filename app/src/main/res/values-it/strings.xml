@@ -19,6 +19,7 @@
     <string name="home_reading_case">Custodia</string>
     <string name="home_allow_bluetooth">Consenti il Bluetooth</string>
     <string name="home_set_up">Configura gli occhiali</string>
+    <string name="home_key_refused">Chiave rifiutata. Configurali di nuovo</string>
     <plurals name="home_new_captures">
         <item quantity="one">%d foto o video nuovo</item>
         <item quantity="other">%d foto e video nuovi</item>

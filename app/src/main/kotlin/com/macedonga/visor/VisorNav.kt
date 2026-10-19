@@ -207,6 +207,7 @@ fun VisorNav(opens: kotlinx.coroutines.flow.Flow<String>, markAtLaunch: Boolean)
                 entry<HomeKey> {
                     HomeScreen(
                         onSetUp = { backStack.add(OnboardingKey()) },
+                        onChangeOwner = { backStack.add(OnboardingKey(login = true)) },
                         onMedia = { backStack.add(MediaKey) },
                         onLive = {
                             stage.homeToTop = true

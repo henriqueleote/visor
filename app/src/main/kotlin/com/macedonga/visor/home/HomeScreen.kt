@@ -213,6 +213,7 @@ suspend fun ownerFirstName(context: Context): String? = withContext(Dispatchers.
 @Composable
 fun HomeScreen(
     onSetUp: () -> Unit,
+    onChangeOwner: () -> Unit,
     onMedia: () -> Unit,
     onLive: () -> Unit,
     onMetaAi: () -> Unit,
@@ -579,7 +580,7 @@ fun HomeScreen(
                     val ours = band.takeIf { b -> b.battery != null && bands.any { it.serial == b.serial && it.glasses == current } }
                     StatusPill(
                         state, mood, lastBattery, paired, allowed, transferring, importProgress, waiting = if (importing) 0 else fresh.size, onImport = onImport,
-                        onAllow = { ask.launch(wanted()) }, onSetUp = onSetUp, modifier = Modifier,
+                        onAllow = { ask.launch(wanted()) }, onSetUp = onSetUp, onChangeOwner = onChangeOwner, modifier = Modifier,
                         band = state.device?.bandBattery ?: ours?.battery,
                         bandCharging = state.device?.bandCharging ?: (ours?.charging == true),
                     )

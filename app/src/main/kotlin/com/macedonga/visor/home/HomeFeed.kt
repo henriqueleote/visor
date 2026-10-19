@@ -67,8 +67,10 @@ import com.macedonga.visor.core.identity.language.GlassesLook
 import com.macedonga.visor.core.connection.CaseBattery
 import com.macedonga.visor.core.connection.GlassesState
 import com.macedonga.visor.core.design.Visor
+import com.macedonga.visor.core.identity.Diagnosis
 import com.macedonga.visor.core.media.Capture
 import com.macedonga.visor.core.media.Transfer
+import com.macedonga.visor.core.session.LinkState
 import com.macedonga.visor.stage.LocalStage
 import com.macedonga.visor.stage.Mood
 import com.macedonga.visor.ui.VisorIcons
@@ -137,6 +139,7 @@ fun StatusPill(
     onImport: () -> Unit,
     onAllow: () -> Unit,
     onSetUp: () -> Unit,
+    onChangeOwner: () -> Unit,
     modifier: Modifier,
     // The Display's Neural Band, when Visor has read it.
     band: Int? = null,
@@ -145,6 +148,9 @@ fun StatusPill(
     when {
         !allowed -> return Pill(stringResource(R.string.home_allow_bluetooth), onAllow, modifier)
         paired == false -> return Pill(stringResource(R.string.home_set_up), onSetUp, modifier)
+        // Nearby and refusing the key would otherwise look asleep, with nothing to do about it.
+        state.diagnosis == Diagnosis.EVICTED && state.link != LinkState.READY ->
+            return Pill(stringResource(R.string.home_key_refused), onChangeOwner, modifier)
     }
     val colors = Visor.colors
     val away = mood == Mood.FAR || mood == Mood.ABSENT || mood == Mood.SEARCHING || mood == Mood.ASLEEP || mood == Mood.IN_CASE

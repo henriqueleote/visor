@@ -20,6 +20,7 @@
     <string name="home_reading_case">Case</string>
     <string name="home_allow_bluetooth">Allow Bluetooth</string>
     <string name="home_set_up">Set up glasses</string>
+    <string name="home_key_refused">Key refused. Set them up again</string>
     <plurals name="home_new_captures">
         <item quantity="one">%d new photo or video</item>
         <item quantity="other">%d new photos and videos</item>
