@@ -144,6 +144,7 @@ object ConnectionModule {
         internet: com.macedonga.visor.connection.InternetSwitch,
         fetcher: com.macedonga.visor.connection.DataFetcher,
         tunnel: com.macedonga.visor.connection.PhoneInternet,
+        panels: com.macedonga.visor.connection.Panels,
     ): SessionHostFactory = RealSessionHostFactory(
         transports,
         responders = mapOf(
@@ -157,6 +158,7 @@ object ConnectionModule {
             com.macedonga.visor.connection.InternetSwitch.SVC to internet,
             com.macedonga.visor.connection.DataFetcher.SVC to fetcher,
             com.macedonga.visor.connection.PhoneInternet.SVC to tunnel,
+            com.macedonga.visor.connection.Panels.SVC to panels,
             SVC_HEARING to Responder { message, mux -> hearing.get().respond(message, mux) },
             ServiceId.CONN_DEVICE_LEASE.value to Responder { message, mux -> lease.get().respond(message, mux) },
         ),
