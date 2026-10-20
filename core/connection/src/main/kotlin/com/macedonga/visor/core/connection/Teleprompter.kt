@@ -33,7 +33,7 @@ data class PrompterLook(val sizeSp: Double = 35.0, val speed: Double = 32.0, val
  * The Display's teleprompter, run from the phone as the Meta app runs it: svc28 StartApp (2000) for app 35 with the
  * script and its look as intent data, answered by 2001; a start while it shows replaces the text. StopApp (2002)
  * closes it, answered by 2003. Following the voice is the glasses' own `asr_enabled`, which the Meta app never sends.
- * The glasses do not say when the wearer closes it there.
+ * The glasses do not say when the wearer closes it there; captions opening is seen, on svc72.
  */
 class Teleprompter(private val connection: GlassesConnection) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
@@ -44,6 +44,11 @@ class Teleprompter(private val connection: GlassesConnection) {
     init {
         scope.launch {
             connection.serviceData.collect { data ->
+                // Captions or translation opening on the glasses takes the screen from it.
+                if (data.serviceId == SVC_TRANSLATION && data.messageType == MT_INVITE_TO_JOIN && _state.value.phase == PrompterPhase.SHOWING) {
+                    wait?.cancel()
+                    _state.value = PrompterState()
+                }
                 if (data.serviceId != SVC_COMPANION) return@collect
                 val code = runCatching { Wire.parse(data.payload).varint(1) }.getOrDefault(0L)
                 when (data.messageType) {
@@ -111,6 +116,8 @@ class Teleprompter(private val connection: GlassesConnection) {
         const val SNAPP_ALREADY_STARTED = 12L
         const val SNAPP_DENIED_BY_PEAK_POWER = 15L
         private const val SVC_COMPANION = 28
+        private const val SVC_TRANSLATION = 72
+        private const val MT_INVITE_TO_JOIN = 2
         private const val MT_START_APP = 2000
         private const val MT_START_APP_RESPONSE = 2001
         private const val MT_STOP_APP = 2002
