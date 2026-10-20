@@ -3,6 +3,8 @@ package com.macedonga.visor.core.assistant
 import android.util.Base64
 import com.macedonga.visor.core.assistant.mcp.ExposedTool
 import com.macedonga.visor.core.assistant.mcp.McpHub
+import com.macedonga.visor.core.assistant.mcp.PHOTO_BASE64
+import com.macedonga.visor.core.assistant.mcp.PHOTO_DATA_URL
 import com.macedonga.visor.core.assistant.mcp.ToolAction
 import com.macedonga.visor.core.assistant.mcp.ToolResult
 import com.macedonga.visor.core.assistant.mcp.Toolbox
@@ -34,8 +36,8 @@ private fun Exchange.told(): String = if (actions.isEmpty()) answer else
 /** An answer, what the model chose to remember while giving it, and what it did with the person's tools. */
 data class Reply(val text: String, val remembered: List<String> = emptyList(), val actions: List<ToolAction> = emptyList())
 
-/** What one answer may use and what it did with it. */
-private class Turn(val box: Toolbox) {
+/** What one answer may use and what it did with it; [photo] is the glasses' JPEG that came with the question. */
+private class Turn(val box: Toolbox, val photo: ByteArray? = null) {
     val remembered = ArrayList<String>()
     val actions = ArrayList<ToolAction>()
 }
@@ -81,13 +83,14 @@ class Brain(
         val c = config()
         check(c.apiKey.isNotBlank() || c.provider == Provider.OPENAI_COMPATIBLE) { "no API key is set" }
         // The tools never stand in the way of an answer: without them the model still answers.
-        val turn = Turn(hub?.let { runCatching { it.toolbox() }.getOrNull() } ?: Toolbox(emptyList(), ""))
+        val turn = Turn(hub?.let { runCatching { it.toolbox() }.getOrNull() } ?: Toolbox(emptyList(), ""), image)
         val system = (if (audience == Audience.PHONE) PHONE_PROMPT else SYSTEM_PROMPT) +
             " It is ${ZonedDateTime.now().format(DateTimeFormatter.ofPattern("EEEE d MMMM yyyy, HH:mm", Locale.ENGLISH))}." +
             (if (audience == Audience.GLASSES) " The glasses are set to ${locale.getDisplayLanguage(Locale.ENGLISH)}." else "") +
             memoryPrompt() +
             phoneTools?.prompt.orEmpty() +
             turn.box.prompt +
+            (if (image != null && turn.box.tools.isNotEmpty()) PHOTO_PROMPT else "") +
             (if (note.isNotBlank()) " $note" else "") +
             if (c.instructions.isNotBlank()) " " + c.instructions else ""
         val recent = past.takeLast(MAX_EXCHANGES)
@@ -158,7 +161,7 @@ class Brain(
             return result
         }
         val tool = turn.box.find(name) ?: return ToolResult("unknown tool", true)
-        val (result, action) = hub?.call(tool, input) ?: return ToolResult("unavailable", true)
+        val (result, action) = hub?.call(tool, input, turn.photo) ?: return ToolResult("unavailable", true)
         action?.let(turn.actions::add)
         return result
     }
@@ -380,3 +383,7 @@ class Brain(
             .put("function", JSONObject().put("name", name).put("description", help).put("parameters", parameters))
     }
 }
+
+// A tool takes the glasses' photo by a placeholder; McpHub puts the photo in its place.
+private val PHOTO_PROMPT = " The glasses' photo comes with this question. To hand it to a tool, write \"$PHOTO_BASE64\" as " +
+    "that argument's value for the JPEG as base64, or \"$PHOTO_DATA_URL\" for it as a data URL; Visor puts the photo there."

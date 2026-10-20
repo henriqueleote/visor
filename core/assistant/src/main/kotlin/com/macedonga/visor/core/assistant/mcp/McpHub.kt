@@ -267,12 +267,15 @@ class McpHub(private val context: Context, val store: McpStore) {
         return Toolbox(exposed, prompt)
     }
 
-    /** Runs [t] for the model. A failure comes back as text the model can say, never as an exception. */
-    suspend fun call(t: ExposedTool, arguments: JSONObject): Pair<ToolResult, ToolAction?> {
+    /**
+     * Runs [t] for the model, with [photo] in place of its placeholders. A failure comes back as text the model can
+     * say, never as an exception.
+     */
+    suspend fun call(t: ExposedTool, arguments: JSONObject, photo: ByteArray? = null): Pair<ToolResult, ToolAction?> {
         val started = now()
         val s = store.get(t.server.id) ?: t.server
         val result = try {
-            connection(s).call(t.tool.name, arguments, CALL_MS)
+            connection(s).call(t.tool.name, withPhoto(arguments, photo), CALL_MS)
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (error: Exception) {
@@ -563,4 +566,22 @@ class McpHub(private val context: Context, val store: McpStore) {
             .filter { it.isNotBlank() }
             .take(3).joinToString(", ")
     }
+}
+
+/** What the model writes as an argument's value to hand a tool the glasses' photo: as base64, or as a data URL. */
+const val PHOTO_BASE64 = "visor:photo"
+const val PHOTO_DATA_URL = "visor:photo-url"
+
+/** [arguments] with every placeholder value, however deep, swapped for [photo]; the placeholders stay in the log. */
+internal fun withPhoto(arguments: JSONObject, photo: ByteArray?): JSONObject {
+    if (photo == null) return arguments
+    val base64 by lazy { android.util.Base64.encodeToString(photo, android.util.Base64.NO_WRAP) }
+    fun swap(value: Any?): Any? = when (value) {
+        PHOTO_BASE64 -> base64
+        PHOTO_DATA_URL -> "data:image/jpeg;base64,$base64"
+        is JSONObject -> JSONObject().also { out -> value.keys().forEach { k -> out.put(k, swap(value.opt(k))) } }
+        is org.json.JSONArray -> org.json.JSONArray().also { out -> for (i in 0 until value.length()) out.put(swap(value.opt(i))) }
+        else -> value
+    }
+    return swap(arguments) as JSONObject
 }
