@@ -236,7 +236,7 @@ fun GlassesPage(open: (NavKey) -> Unit, model: GlassesPageModel = hiltViewModel(
                             }
                         }
                     },
-                    { ValueRow(stringResource(R.string.glasses_change_owner), null, onClick = { open(OnboardingKey(login = true)) }, sub = stringResource(R.string.glasses_change_owner_sub)) },
+                    { ValueRow(stringResource(R.string.glasses_change_owner), null, onClick = { open(OnboardingKey(login = true, address = (glasses.target?.link as? GlassesLink.Bluetooth)?.address)) }, sub = stringResource(R.string.glasses_change_owner_sub)) },
                 )
             }
         }

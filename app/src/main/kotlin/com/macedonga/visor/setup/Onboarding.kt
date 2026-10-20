@@ -162,9 +162,12 @@ class OnboardingViewModel @Inject constructor(
     var loginOpened by mutableStateOf(false)
     private var watching: Job? = null
     private var firstRun = false
+    // Setting a known pair up again: it is taken as soon as it is heard in pairing mode.
+    private var wanted: String? = null
 
     /** A fresh setup: from the welcome on the first run, otherwise from the first page with something to do. */
-    fun begin(welcome: Boolean, login: Boolean) {
+    fun begin(welcome: Boolean, login: Boolean, address: String? = null) {
+        wanted = address
         history.clear()
         asked = emptySet()
         loginOpened = false
@@ -217,7 +220,11 @@ class OnboardingViewModel @Inject constructor(
                 if (bluetoothOff) bonded = withContext(Dispatchers.IO) { nearby.bonded() }
                 bluetoothOff = false
                 try {
-                    nearby.scan().collect { heard.value = it }
+                    nearby.scan().collect { found ->
+                        heard.value = found
+                        val known = wanted?.let { a -> found.firstOrNull { it.pairing && it.address.equals(a, ignoreCase = true) } }
+                        if (known != null && chosen == null && page == Page.PAIRING) choose(known)
+                    }
                 } catch (stop: CancellationException) {
                     throw stop
                 } catch (failed: Exception) {
@@ -274,6 +281,7 @@ class OnboardingViewModel @Inject constructor(
 fun OnboardingScreen(
     welcome: Boolean,
     login: Boolean,
+    address: String? = null,
     onLogin: () -> Unit,
     onEventLog: () -> Unit,
     onDone: (GlassesTarget) -> Unit,
@@ -282,7 +290,7 @@ fun OnboardingScreen(
 ) {
     // Saved with the entry, so coming back from the login page goes on where it was.
     rememberSaveable {
-        model.begin(welcome, login)
+        model.begin(welcome, login, address)
         true
     }
     val debugPage by StageDebug.onboardingPage.collectAsStateWithLifecycle()

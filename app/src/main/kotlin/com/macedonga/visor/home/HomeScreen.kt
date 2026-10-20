@@ -213,7 +213,7 @@ suspend fun ownerFirstName(context: Context): String? = withContext(Dispatchers.
 @Composable
 fun HomeScreen(
     onSetUp: () -> Unit,
-    onChangeOwner: () -> Unit,
+    onChangeOwner: (address: String?) -> Unit,
     onMedia: () -> Unit,
     onLive: () -> Unit,
     onMetaAi: () -> Unit,

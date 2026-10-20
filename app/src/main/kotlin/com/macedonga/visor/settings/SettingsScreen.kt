@@ -295,7 +295,7 @@ fun SettingsScreen(open: (NavKey) -> Unit, model: SettingsViewModel = hiltViewMo
             val remembered by model.lastSeen.battery.collectAsStateWithLifecycle()
             StatusPill(
                 glasses, mood, remembered, paired = glasses.target?.let { true }, allowed = true, importing = false, importProgress = 0f, waiting = 0,
-                onImport = {}, onAllow = {}, onSetUp = { open(OnboardingKey()) }, onChangeOwner = { open(OnboardingKey(login = true)) },
+                onImport = {}, onAllow = {}, onSetUp = { open(OnboardingKey()) }, onChangeOwner = { open(OnboardingKey(login = true, address = it)) },
                 modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 26.dp).graphicsLayer { alpha = (1f - (scrollFold * 2.5f).coerceIn(0f, 1f)) * stage.shown(spot) },
             )
         }

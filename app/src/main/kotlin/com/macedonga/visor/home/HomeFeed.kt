@@ -148,7 +148,7 @@ fun StatusPill(
     onImport: () -> Unit,
     onAllow: () -> Unit,
     onSetUp: () -> Unit,
-    onChangeOwner: () -> Unit,
+    onChangeOwner: (address: String?) -> Unit,
     modifier: Modifier,
     // The Display's Neural Band, when Visor has read it.
     band: Int? = null,
@@ -159,7 +159,7 @@ fun StatusPill(
         paired == false -> return Pill(stringResource(R.string.home_set_up), onSetUp, modifier)
         // Nearby and refusing the key would otherwise look asleep, with nothing to do about it.
         state.diagnosis == Diagnosis.EVICTED && state.link != LinkState.READY ->
-            return RefusedPill(onChangeOwner, modifier)
+            return RefusedPill({ onChangeOwner((state.target?.link as? com.macedonga.visor.core.connection.GlassesLink.Bluetooth)?.address) }, modifier)
     }
     val colors = Visor.colors
     val away = mood == Mood.FAR || mood == Mood.ABSENT || mood == Mood.SEARCHING || mood == Mood.ASLEEP || mood == Mood.IN_CASE
@@ -673,8 +673,8 @@ private fun RefusedPill(onChangeOwner: () -> Unit, modifier: Modifier) {
     }
     // Closed again whenever Meta AI comes or goes, so a reinstall never opens it by itself.
     var explaining by remember(metaAi) { mutableStateOf(false) }
-    if (!metaAi) return Pill(stringResource(R.string.home_key_refused), onChangeOwner, modifier)
-    Pill(stringResource(R.string.home_key_refused_meta_ai), { explaining = true }, modifier)
+    if (!metaAi) return RefusedCapsule(stringResource(R.string.home_key_refused), onChangeOwner, modifier)
+    RefusedCapsule(stringResource(R.string.home_key_refused_meta_ai), { explaining = true }, modifier)
     if (explaining) {
         VisorSheet({ explaining = false }) {
             SheetTitle(stringResource(R.string.key_refused_meta_ai_title), stringResource(R.string.key_refused_meta_ai_text))
@@ -686,6 +686,23 @@ private fun RefusedPill(onChangeOwner: () -> Unit, modifier: Modifier) {
                 }, quiet = true)
             }
         }
+    }
+}
+
+/** The status pill's capsule, saying what is wrong with the signal dot an error takes, and opening what fixes it. */
+@Composable
+private fun RefusedCapsule(text: String, onClick: () -> Unit, modifier: Modifier) {
+    Row(
+        modifier
+            .clip(RoundedCornerShape(50))
+            .background(Visor.colors.surface)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 9.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(Modifier.size(7.dp).clip(RoundedCornerShape(50)).background(Visor.colors.signal))
+        Spacer(Modifier.size(8.dp))
+        Text(text, style = Visor.type.label, color = Visor.colors.textPrimary)
     }
 }
 

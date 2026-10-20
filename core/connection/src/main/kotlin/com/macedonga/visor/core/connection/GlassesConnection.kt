@@ -173,20 +173,26 @@ class GlassesConnection(
             is LinkStateChanged -> {
                 val fresh = event.state == LinkState.CONNECTING
                 if (fresh) newAttempt()
+                // Glasses can turn the key down and still end link setup, then refuse every service: that is no link.
+                val refused = event.state == LinkState.READY && !host.trustComplete && host.credentialReceived
                 _state.value = _state.value.copy(
-                    link = event.state,
+                    link = if (refused) LinkState.LOST else event.state,
                     // The session publishes CONNECTING at the top of every attempt, including a
                     // reconnect, so that is where the slate is cleared.
                     reason = if (fresh) "" else event.reason,
                     failure = if (fresh) null else _state.value.failure,
                     // A refused key outlives the retries (newAttempt keeps it); a link that comes up is judged afresh.
-                    diagnosis = if (event.state == LinkState.READY) null else _state.value.diagnosis,
+                    diagnosis = when {
+                        refused -> Diagnosis.EVICTED
+                        event.state == LinkState.READY -> null
+                        else -> _state.value.diagnosis
+                    },
                 )
-                when (event.state) {
-                    LinkState.READY -> onReady(host, bundle, scope)
+                when {
+                    refused -> judge(host, bundle)
+                    event.state == LinkState.READY -> onReady(host, bundle, scope)
                     // An attempt that ended without a verdict gets one now.
-                    LinkState.LOST, LinkState.DISCONNECTED -> judge(host, bundle)
-                    else -> Unit
+                    event.state == LinkState.LOST || event.state == LinkState.DISCONNECTED -> judge(host, bundle)
                 }
             }
 
