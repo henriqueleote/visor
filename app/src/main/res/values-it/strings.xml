@@ -924,4 +924,5 @@
     <string name="hct_retry">Riprova</string>
     <string name="phone_directions">Indicazioni per %1$s</string>
     <string name="phone_play">Riproduci %1$s</string>
+    <string name="home_set_up_again">Configura di nuovo</string>
 </resources>

@@ -926,4 +926,5 @@
     <string name="hct_retry">Try again</string>
     <string name="phone_directions">Directions to %1$s</string>
     <string name="phone_play">Play %1$s</string>
+    <string name="home_set_up_again">Set up again</string>
 </resources>

@@ -15,6 +15,9 @@ interface SessionHost {
     /** True once the svc36 exchange has completed in both directions on this attempt. */
     val trustComplete: Boolean
 
+    /** The glasses sent their own credential and turned this phone's down: they are there, and refuse the key. */
+    val trustRefused: Boolean get() = false
+
     fun start(scope: CoroutineScope)
 
     /** Finish, and do not return until the socket has been let go of. */
