@@ -36,6 +36,8 @@ data class LastPosture(val folded: Boolean, val inCase: Boolean)
 data class PairSeen(
     val glasses: Int? = null,
     val case: Int? = null,
+    // The case was on its charger at that reading.
+    val caseCharging: Boolean = false,
     val at: Long = 0,
     val folded: Boolean = false,
     val inCase: Boolean = false,
@@ -110,7 +112,16 @@ class LastSeen @Inject constructor(
         update(target.serial) { was ->
             val battery = device.battery
             var now = was
-            if (battery != null) now = now.copy(glasses = battery.percent.toInt(), case = device.case?.levelPercent() ?: was.case, at = System.currentTimeMillis())
+            if (battery != null) {
+                // The case reads out only through the glasses in it. One that was charging has gone on charging since:
+                // its last reading is out of date.
+                val case = device.case?.levelPercent()
+                now = now.copy(
+                    glasses = battery.percent.toInt(), at = System.currentTimeMillis(),
+                    case = case ?: was.case.takeUnless { was.caseCharging },
+                    caseCharging = case != null && device.case?.charging == true,
+                )
+            }
             // The case's "present" only says the case is known; charging folded is what says they sit in it.
             if (state.link == LinkState.READY) {
                 val inCase = battery?.charging?.let { it && device.hinge != "OPEN" }
@@ -183,6 +194,7 @@ class LastSeen @Inject constructor(
     private fun encode(s: PairSeen): String = JSONObject().apply {
         s.glasses?.let { put("glasses", it) }
         s.case?.let { put("case", it) }
+        if (s.caseCharging) put("case_charging", true)
         put("at", s.at)
         put("folded", s.folded)
         put("in_case", s.inCase)
@@ -198,6 +210,7 @@ class LastSeen @Inject constructor(
         PairSeen(
             glasses = o.optInt("glasses", -1).takeIf { it >= 0 },
             case = o.optInt("case", -1).takeIf { it >= 0 },
+            caseCharging = o.optBoolean("case_charging"),
             at = o.optLong("at", 0),
             folded = o.optBoolean("folded"),
             inCase = o.optBoolean("in_case"),
