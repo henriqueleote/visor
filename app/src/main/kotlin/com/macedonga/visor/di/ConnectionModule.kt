@@ -160,6 +160,11 @@ object ConnectionModule {
 
     @Provides
     @Singleton
+    fun teleprompter(connection: GlassesConnection): com.macedonga.visor.core.connection.Teleprompter =
+        com.macedonga.visor.core.connection.Teleprompter(connection)
+
+    @Provides
+    @Singleton
     fun assistantConfig(@ApplicationContext context: Context): AssistantConfigStore = AssistantConfigStore(context)
 
     @Provides

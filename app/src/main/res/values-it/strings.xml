@@ -924,5 +924,31 @@
     <string name="hct_retry">Riprova</string>
     <string name="phone_directions">Indicazioni per %1$s</string>
     <string name="phone_play">Riproduci %1$s</string>
+    <string name="prompter_title">Teleprompter</string>
+    <string name="prompter_script">Testo</string>
+    <string name="prompter_empty">Scrivi o incolla il testo</string>
+    <string name="prompter_card_empty">Nessun testo</string>
+    <plurals name="prompter_words">
+        <item quantity="one">%d parola</item>
+        <item quantity="other">%d parole</item>
+    </plurals>
+    <string name="prompter_size">Dimensione del testo</string>
+    <string name="prompter_size_small">Piccolo</string>
+    <string name="prompter_size_medium">Medio</string>
+    <string name="prompter_size_large">Grande</string>
+    <string name="prompter_size_huge">Molto grande</string>
+    <string name="prompter_speed">Velocità di scorrimento</string>
+    <string name="prompter_layout">Disposizione</string>
+    <string name="prompter_scroll">Scorrimento</string>
+    <string name="prompter_pages">Pagine</string>
+    <string name="prompter_show">Mostra sugli occhiali</string>
+    <string name="prompter_update">Aggiorna</string>
+    <string name="prompter_close">Chiudi</string>
+    <string name="prompter_on_glasses">Sugli occhiali</string>
+    <string name="prompter_not_connected">Connetti gli occhiali per mostrarlo</string>
+    <string name="prompter_refused">Gli occhiali non l\'hanno aperto</string>
+    <string name="prompter_refused_battery">La batteria degli occhiali è troppo scarica</string>
+    <string name="prompter_refused_heat">Gli occhiali sono troppo caldi</string>
+    <string name="prompter_refused_power">Gli occhiali non hanno abbastanza energia</string>
     <string name="home_set_up_again">Configura di nuovo</string>
 </resources>

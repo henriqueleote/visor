@@ -53,6 +53,12 @@ object Wire {
     fun fieldBytes(fieldNumber: Int, value: ByteArray): ByteArray =
         tag(fieldNumber, 2) + encodeVarint(value.size.toLong()) + value
 
+    /** A double as protobuf writes it: fixed64, little-endian. */
+    fun fieldDouble(fieldNumber: Int, value: Double): ByteArray {
+        val bits = java.lang.Double.doubleToRawLongBits(value)
+        return tag(fieldNumber, 1) + ByteArray(8) { i -> (bits ushr (8 * i)).toByte() }
+    }
+
     // --- decode ------------------------------------------------------------
 
     /** A varint and the offset just past it. */

@@ -217,6 +217,7 @@ fun HomeScreen(
     onLive: () -> Unit,
     onMetaAi: () -> Unit,
     onSettings: () -> Unit,
+    onDisplayTool: (com.macedonga.visor.display.DisplayTool) -> Unit = {},
     model: HomeViewModel = hiltViewModel(),
 ) {
     val context = LocalContext.current
@@ -518,6 +519,11 @@ fun HomeScreen(
                     Facts(lastFacts, live = here && !elsewhere, lastCapture = lastCapture, modifier = Modifier.padding(top = GAP).appear(entrance, 2))
                     Spacer(Modifier.height(FOOT))
                 }
+            }
+            // The Display's tools, for a Display: known by its build while connected, by its band while away.
+            val bandsHere = model.bands.all.value
+            if (!elsewhere && (com.macedonga.visor.settings.hasDisplay(state.info?.build) || bandsHere.any { it.glasses == current })) {
+                item(key = "display") { com.macedonga.visor.display.DisplayShelf(onDisplayTool, Modifier.padding(top = 4.dp, bottom = 8.dp).appear(entrance, 4)) }
             }
             item(key = "places") { Places(onMedia, onLive, onMetaAi, onSettings, Modifier.appear(entrance, 5), forThisPair = !elsewhere) }
         }

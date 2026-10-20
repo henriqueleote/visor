@@ -147,6 +147,9 @@ data object PhoneAccessKey : NavKey
 @Serializable
 data object NotifyAppsKey : NavKey
 
+@Serializable
+data object PrompterKey : NavKey
+
 /** The app's graph: the home, and every screen it opens. */
 @Composable
 fun VisorNav(opens: kotlinx.coroutines.flow.Flow<String>, markAtLaunch: Boolean) {
@@ -201,6 +204,11 @@ fun VisorNav(opens: kotlinx.coroutines.flow.Flow<String>, markAtLaunch: Boolean)
                         },
                         onMetaAi = { backStack.add(MetaAiKey) },
                         onSettings = { backStack.add(SettingsKey) },
+                        onDisplayTool = { tool ->
+                            when (tool) {
+                                com.macedonga.visor.display.DisplayTool.TELEPROMPTER -> backStack.add(PrompterKey)
+                            }
+                        },
                     )
                 }
                 entry<DeviceKey> {
@@ -253,6 +261,7 @@ fun VisorNav(opens: kotlinx.coroutines.flow.Flow<String>, markAtLaunch: Boolean)
                 entry<AboutKey> { AboutScreen() }
                 entry<PhoneAccessKey> { PhoneAccessScreen() }
                 entry<NotifyAppsKey> { NotifyAppsScreen() }
+                entry<PrompterKey> { com.macedonga.visor.display.PrompterScreen() }
                 entry<MetaAiKey> {
                     MetaAiScreen(
                         onSettings = { backStack.add(AssistantSettingsKey) },

@@ -58,6 +58,7 @@ class DebugReceiver : BroadcastReceiver() {
     @Inject lateinit var pairs: com.macedonga.visor.pairs.Pairs
     @Inject lateinit var looks: com.macedonga.visor.stage.Looks
     @Inject lateinit var phone: com.macedonga.visor.phone.PhoneActions
+    @Inject lateinit var prompter: com.macedonga.visor.core.connection.Teleprompter
 
     override fun onReceive(context: Context, intent: Intent) {
         val action = intent.action?.substringAfterLast('.').orEmpty()
@@ -303,6 +304,18 @@ class DebugReceiver : BroadcastReceiver() {
                     connection.submit { com.macedonga.visor.core.media.requestAsset(it, capture.handle, id) }
                     resultData = "asked for $id"
                 }
+            }
+            "PROMPTER" -> answerLater {
+                if (intent.getBooleanExtra("close", false)) prompter.close()
+                else prompter.show(
+                    intent.getStringExtra("text") ?: "Testing the teleprompter from Visor.",
+                    com.macedonga.visor.core.connection.PrompterLook(paged = intent.getBooleanExtra("paged", false), followVoice = intent.getBooleanExtra("voice", false)),
+                )
+                kotlinx.coroutines.delay(300)
+                withTimeoutOrNull(8_000) {
+                    prompter.state.first { it.phase != com.macedonga.visor.core.connection.PrompterPhase.STARTING && it.phase != com.macedonga.visor.core.connection.PrompterPhase.CLOSING }
+                }
+                prompter.state.value.let { "${it.phase} refusal=${it.refusal}" }
             }
             "PHONE" -> answerLater {
                 when (intent.getStringExtra("do")) {

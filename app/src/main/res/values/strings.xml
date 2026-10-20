@@ -926,5 +926,31 @@
     <string name="hct_retry">Try again</string>
     <string name="phone_directions">Directions to %1$s</string>
     <string name="phone_play">Play %1$s</string>
+    <string name="prompter_title">Teleprompter</string>
+    <string name="prompter_script">Script</string>
+    <string name="prompter_empty">Write or paste your script</string>
+    <string name="prompter_card_empty">No script</string>
+    <plurals name="prompter_words">
+        <item quantity="one">%d word</item>
+        <item quantity="other">%d words</item>
+    </plurals>
+    <string name="prompter_size">Text size</string>
+    <string name="prompter_size_small">Small</string>
+    <string name="prompter_size_medium">Medium</string>
+    <string name="prompter_size_large">Large</string>
+    <string name="prompter_size_huge">Very large</string>
+    <string name="prompter_speed">Scroll speed</string>
+    <string name="prompter_layout">Layout</string>
+    <string name="prompter_scroll">Scroll</string>
+    <string name="prompter_pages">Pages</string>
+    <string name="prompter_show">Show on glasses</string>
+    <string name="prompter_update">Update</string>
+    <string name="prompter_close">Close</string>
+    <string name="prompter_on_glasses">On the glasses</string>
+    <string name="prompter_not_connected">Connect the glasses to show it</string>
+    <string name="prompter_refused">The glasses did not open it</string>
+    <string name="prompter_refused_battery">The glasses\' battery is too low</string>
+    <string name="prompter_refused_heat">The glasses are too warm</string>
+    <string name="prompter_refused_power">The glasses are short of power</string>
     <string name="home_set_up_again">Set up again</string>
 </resources>
