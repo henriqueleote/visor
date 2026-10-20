@@ -65,7 +65,9 @@ class EventLog @Inject constructor(
         }
         scope.launch {
             connection.serviceData.collect { data ->
-                // The assistant says what its svc15 traffic means itself.
+                // The assistant says what its svc15 traffic means itself; the internet tunnel and the data fetcher go to
+                // the Requests page, a packet or a request at a time being far too many for this log.
+                if (data.serviceId in QUIET) return@collect
                 if (data.serviceId != 15) add("Message from service ${data.serviceId}, type ${data.messageType}, ${data.payload.size} bytes")
                 // Debug builds also print the bytes, so a service Visor does not answer can be read over adb.
                 if (BuildConfig.DEBUG && data.serviceId !in setOf(15, 20)) {
@@ -148,6 +150,7 @@ class EventLog @Inject constructor(
 
     private companion object {
         const val LIMIT = 1000
+        val QUIET = setOf(com.macedonga.visor.connection.DataFetcher.SVC, com.macedonga.visor.connection.PhoneInternet.SVC)
         val TIME: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm:ss.SSS")
     }
 }

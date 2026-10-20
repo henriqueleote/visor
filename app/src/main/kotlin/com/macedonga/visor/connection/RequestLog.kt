@@ -20,6 +20,8 @@ data class GlassesRequest(
     val failed: Boolean = false,
     val bytes: Long = 0,
     val millis: Long = 0,
+    /** How many times in a row the same request ended the same way. */
+    val times: Int = 1,
 )
 
 /** The requests the glasses made through the phone, newest last, in memory only: their links can carry tokens. */
@@ -37,7 +39,19 @@ class RequestLog @Inject constructor() {
 
     fun finish(id: Long, outcome: String, failed: Boolean, bytes: Long = 0) {
         _items.update { list ->
-            list.map { if (it.id == id) it.copy(outcome = outcome, failed = failed, bytes = bytes, millis = System.currentTimeMillis() - it.at) else it }
+            val done = list.map { if (it.id == id) it.copy(outcome = outcome, failed = failed, bytes = bytes, millis = System.currentTimeMillis() - it.at) else it }
+            // The same request ending the same way as the one before it is counted on that one, not listed again.
+            val at = done.indexOfFirst { it.id == id }
+            val earlier = done.subList(0, maxOf(at, 0)).lastOrNull { it.url == done[at].url }
+            if (at > 0 && earlier != null && earlier.outcome == outcome && earlier.failed == failed) {
+                done.mapNotNull { e ->
+                    when (e.id) {
+                        id -> null
+                        earlier.id -> e.copy(times = e.times + 1, at = done[at].at)
+                        else -> e
+                    }
+                }
+            } else done
         }
     }
 

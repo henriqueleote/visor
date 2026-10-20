@@ -1,12 +1,18 @@
 package com.macedonga.visor.connection
 
+import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.media.MediaMetadataRetriever
+import android.net.Uri
+import android.util.Base64
+import org.json.JSONObject
 import com.macedonga.visor.core.protocol.Wire
 import com.macedonga.visor.core.session.DataXConnection
 import com.macedonga.visor.core.session.DataXMessage
 import com.macedonga.visor.core.session.Responder
 import com.macedonga.visor.log.EventLog
+import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.ByteArrayOutputStream
 import java.io.InputStream
 import java.net.HttpURLConnection
@@ -30,10 +36,18 @@ import kotlinx.coroutines.sync.withPermit
 /**
  * svc9000, the data fetcher: the Display's apps (Instagram, messaging, the prompter) ask the phone for a URL and get
  * its bytes back on the same channel, a ResponseData {1 data, 2 compressed, 3 total} per chunk, then an OK status.
- * Plain http(s) streams; with an image transformation the whole image is scaled first. Other schemes are refused.
+ * Plain http(s) streams; with an image transformation the whole image is scaled first. An `instagram://` link wraps a
+ * web one: `target_url`, with `headers` (base64 JSON) inside it, and `bytes_to_skip`. `sgmessaging://` is message
+ * media: `whatsapp` with `encrypted=true` is the encrypted file on a whatsapp.net host, which the Display decrypts;
+ * `phone` is a content URI of the phone's own messages. Messenger's, Instagram's and plain WhatsApp media need those
+ * apps' own logins and are refused, as are other schemes.
  */
 @Singleton
-class DataFetcher @Inject constructor(private val log: Provider<EventLog>, private val requests: RequestLog) : Responder {
+class DataFetcher @Inject constructor(
+    @ApplicationContext private val context: Context,
+    private val log: Provider<EventLog>,
+    private val requests: RequestLog,
+) : Responder {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val running = ConcurrentHashMap<Int, Job>()
     private val slots = Semaphore(PARALLEL)
@@ -61,13 +75,53 @@ class DataFetcher @Inject constructor(private val log: Provider<EventLog>, priva
         val id = requests.start(q.url, q.source, q.options())
         var sent = 0L
         val scheme = q.url.substringBefore(':').lowercase()
-        if (scheme != "http" && scheme != "https") {
-            requests.finish(id, "not served: $scheme links", failed = true)
-            mux.sendStatus(reply, UNKNOWN_TYPE)
-            return
+        val target = when (scheme) {
+            "http", "https" -> Target(q.url, emptyMap(), 0)
+            "instagram" -> instagramTarget(q.url) ?: run {
+                // Instagram's bare check, every few seconds; the Meta app turns it down the same way.
+                requests.finish(id, "no target_url, turned down", failed = false)
+                mux.sendStatus(reply, INTERNAL_ERROR)
+                return
+            }
+            "sgmessaging" -> {
+                val link = Uri.parse(q.url)
+                val inner = link.getQueryParameter("uri")
+                when (link.authority) {
+                    "whatsapp" -> {
+                        val host = inner?.let { runCatching { Uri.parse(it) }.getOrNull() }
+                        if (link.getQueryParameter("encrypted") != "true" || host?.scheme != "https" || host.host?.endsWith(".whatsapp.net") != true) {
+                            requests.finish(id, "not served: needs WhatsApp's own login", failed = true)
+                            mux.sendStatus(reply, INTERNAL_ERROR)
+                            return
+                        }
+                        Target(inner, emptyMap(), 0)
+                    }
+                    "phone" -> {
+                        if (inner == null) {
+                            requests.finish(id, "no uri in the link", failed = true)
+                            mux.sendStatus(reply, INTERNAL_ERROR)
+                        } else {
+                            requests.rename(id, inner)
+                            servePhone(Uri.parse(inner), link.getQueryParameter("mimeType").orEmpty(), id, reply, mux)
+                        }
+                        return
+                    }
+                    else -> {
+                        requests.finish(id, "not served: needs ${link.authority}'s own login", failed = true)
+                        mux.sendStatus(reply, INTERNAL_ERROR)
+                        return
+                    }
+                }
+            }
+            else -> {
+                requests.finish(id, "not served: $scheme links", failed = true)
+                mux.sendStatus(reply, UNKNOWN_TYPE)
+                return
+            }
         }
+        if (target.url != q.url) requests.rename(id, target.url)
         val chunk = (if (q.chunkSize > 0) q.chunkSize else DEFAULT_CHUNK).coerceAtMost(MAX_CHUNK)
-        val c = runCatching { open(q.url) }.getOrElse {
+        val c = runCatching { open(target) }.getOrElse {
             log.get().add("Fetch: ${host(q.url)} failed: ${it.message}")
             requests.finish(id, "failed: ${it.message}", failed = true)
             mux.sendStatus(reply, INTERNAL_ERROR)
@@ -82,7 +136,10 @@ class DataFetcher @Inject constructor(private val log: Provider<EventLog>, priva
                 return
             }
             if (q.scale == null) {
-                sent = stream(c.inputStream, c.contentLengthLong, chunk, reply, mux)
+                // From a byte on: a ranged answer says the whole length after its slash; a full one is skipped through.
+                val ranged = code == 206
+                val total = if (ranged) c.getHeaderField("Content-Range")?.substringAfterLast('/')?.toLongOrNull() ?: -1 else c.contentLengthLong
+                sent = stream(c.inputStream, total, chunk, reply, mux, skip = if (ranged) 0 else target.skip)
             } else {
                 var body = c.inputStream.use { it.readBytes() }
                 body = scaled(body, q.scale) ?: body
@@ -94,7 +151,7 @@ class DataFetcher @Inject constructor(private val log: Provider<EventLog>, priva
                 sent = body.size.toLong()
             }
             mux.sendStatus(reply, OK)
-            requests.finish(id, "HTTP $code" + if (q.scale != null) ", scaled" else "", failed = false, bytes = sent)
+            requests.finish(id, "HTTP $code" + (if (q.scale != null) ", scaled" else "") + (if (scheme == "instagram") ", for instagram://" else ""), failed = false, bytes = sent)
         } catch (error: kotlinx.coroutines.CancellationException) {
             requests.finish(id, "cancelled", failed = false, bytes = sent)
             throw error
@@ -107,10 +164,45 @@ class DataFetcher @Inject constructor(private val log: Provider<EventLog>, priva
         }
     }
 
-    /** The body as it comes, a chunk per message; how much went. */
-    private suspend fun stream(input: InputStream, total: Long, chunk: Int, reply: Int, mux: DataXConnection): Long {
+    /** A file of the phone's own messages: a video as its first frame, anything else as it is. */
+    private suspend fun servePhone(uri: Uri, mime: String, id: Long, reply: Int, mux: DataXConnection) {
+        try {
+            val sent = if (mime.startsWith("video/")) {
+                val frame = MediaMetadataRetriever().run {
+                    try {
+                        setDataSource(context, uri)
+                        getFrameAtTime(0)
+                    } finally {
+                        release()
+                    }
+                } ?: error("no frame in the video")
+                val jpeg = ByteArrayOutputStream().also { frame.compress(Bitmap.CompressFormat.JPEG, DEFAULT_QUALITY, it) }.toByteArray()
+                for (at in jpeg.indices step DEFAULT_CHUNK) send(mux, reply, jpeg.copyOfRange(at, minOf(jpeg.size, at + DEFAULT_CHUNK)), jpeg.size.toLong(), false)
+                jpeg.size.toLong()
+            } else {
+                val input = context.contentResolver.openInputStream(uri) ?: error("it could not be opened")
+                stream(input, -1, DEFAULT_CHUNK, reply, mux)
+            }
+            mux.sendStatus(reply, OK)
+            requests.finish(id, if (mime.startsWith("video/")) "first frame" else "read", failed = false, bytes = sent)
+        } catch (error: kotlinx.coroutines.CancellationException) {
+            throw error
+        } catch (error: Exception) {
+            requests.finish(id, "failed: ${error.message}", failed = true)
+            runCatching { mux.sendStatus(reply, INTERNAL_ERROR) }
+        }
+    }
+
+    /** The body as it comes after its first [skip] bytes, a chunk per message; how much went. */
+    private suspend fun stream(input: InputStream, total: Long, chunk: Int, reply: Int, mux: DataXConnection, skip: Long = 0): Long {
         var sent = 0L
         input.use {
+            var left = skip
+            while (left > 0) {
+                val n = it.skip(left)
+                if (n <= 0) break
+                left -= n
+            }
             val buffer = ByteArray(chunk)
             while (true) {
                 kotlin.coroutines.coroutineContext.ensureActive()
@@ -130,7 +222,11 @@ class DataFetcher @Inject constructor(private val log: Provider<EventLog>, priva
         mux.send(reply, body, messageType = MT_REQUEST)
     }
 
-    private fun open(url: String): HttpURLConnection = (URL(url).openConnection() as HttpURLConnection).apply {
+    private fun open(url: String): HttpURLConnection = open(Target(url, emptyMap(), 0))
+
+    private fun open(t: Target): HttpURLConnection = (URL(t.url).openConnection() as HttpURLConnection).apply {
+        for ((k, v) in t.headers) setRequestProperty(k, v)
+        if (t.skip > 0) setRequestProperty("Range", "bytes=${t.skip}-")
         connectTimeout = TIMEOUT_MS
         readTimeout = TIMEOUT_MS
         instanceFollowRedirects = true
@@ -159,6 +255,28 @@ class DataFetcher @Inject constructor(private val log: Provider<EventLog>, priva
     }
 
     private fun host(url: String) = runCatching { URL(url).host }.getOrDefault("?")
+
+    /** What to fetch, the headers to send with it, and from which byte. */
+    private class Target(val url: String, val headers: Map<String, String>, val skip: Long)
+
+    private fun instagramTarget(link: String): Target? {
+        val outer = runCatching { Uri.parse(link) }.getOrNull() ?: return null
+        val inner = outer.getQueryParameter("target_url")?.takeIf { it.isNotEmpty() } ?: return null
+        val skip = outer.getQueryParameter("bytes_to_skip")?.toLongOrNull() ?: 0
+        val innerUri = Uri.parse(inner)
+        val headers = innerUri.getQueryParameter("headers")?.let { encoded ->
+            runCatching {
+                val json = JSONObject(String(Base64.decode(encoded, Base64.NO_WRAP)))
+                json.keys().asSequence().associateWith { json.getString(it) }
+            }.getOrNull()
+        }.orEmpty()
+        val url = if (innerUri.getQueryParameter("headers") == null) inner else {
+            val rebuilt = innerUri.buildUpon().clearQuery()
+            for (name in innerUri.queryParameterNames) if (name != "headers") innerUri.getQueryParameter(name)?.let { rebuilt.appendQueryParameter(name, it) }
+            rebuilt.build().toString()
+        }
+        return Target(url, headers, skip)
+    }
 
     private class Scale(val width: Int, val height: Int, val format: Int, val keepAspect: Boolean, val quality: Int)
 

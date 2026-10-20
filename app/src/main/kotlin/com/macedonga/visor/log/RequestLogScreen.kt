@@ -85,6 +85,7 @@ private fun RequestRow(r: GlassesRequest) {
         val outcome = r.outcome ?: stringResource(R.string.requests_running)
         val parts = listOfNotNull(
             TIME.format(Instant.ofEpochMilli(r.at).atZone(ZoneId.systemDefault())),
+            r.times.takeIf { it > 1 }?.let { "×$it" },
             outcome,
             r.bytes.takeIf { it > 0 }?.let(::size),
             r.millis.takeIf { r.outcome != null }?.let { "$it ms" },
