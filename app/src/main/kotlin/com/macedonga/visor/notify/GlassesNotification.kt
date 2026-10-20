@@ -28,13 +28,14 @@ data class GlassesNotification(
     val flags: Int = 0,
     val category: String? = null,
     val channel: String? = null,
+    // The uuid this notification carries, which a removal names.
+    val uuid: String = UUID.randomUUID().toString(),
 ) {
     /** svc46 type 1: a single ChunkEnvelope holding the NotificationData. */
     fun envelope(): ByteArray = Wire.fieldBytes(1, UUID.randomUUID().toString().toByteArray()) +
         Wire.fieldVarint(2, 0) + Wire.fieldVarint(3, 1) + Wire.fieldBytes(4, data())
 
     fun data(): ByteArray {
-        val uuid = UUID.randomUUID().toString()
         val out = ByteArrayOutputStream()
         fun str(field: Int, s: String) {
             if (s.isNotEmpty()) out.write(Wire.fieldBytes(field, s.toByteArray()))
@@ -57,6 +58,8 @@ data class GlassesNotification(
                 val foa = ByteArrayOutputStream().apply {
                     if (isGroup && groupName.isNotEmpty()) write(Wire.fieldBytes(1, groupName.toByteArray()))
                     write(Wire.fieldBytes(2, threadId.ifEmpty { key }.toByteArray()))
+                    // Explicit TEXT, so the Display offers smart replies: an absent type reads as none.
+                    write(Wire.fieldVarint(9, 0))
                     if (isGroup) write(Wire.fieldVarint(10, 1))
                     if (provider == 2) write(Wire.fieldVarint(11, 1))
                     if (senderId.isNotEmpty()) write(Wire.fieldBytes(12, senderId.toByteArray()))
@@ -97,6 +100,7 @@ data class GlassesNotification(
     companion object {
         const val SVC = 46
         const val MT_UPSERT_CHUNK = 1
+        const val MT_REMOVE = 1022
         const val TYPE_MIRRORED = 14
     }
 }

@@ -22,6 +22,7 @@ import kotlinx.coroutines.delay
 import com.macedonga.visor.core.assistant.Conversation
 import com.macedonga.visor.core.assistant.Messaging
 import com.macedonga.visor.core.connection.GlassesConnection
+import com.macedonga.visor.core.protocol.Wire
 import com.macedonga.visor.core.session.LinkState
 import com.macedonga.visor.core.settings.GlassesSettings
 import dagger.hilt.android.AndroidEntryPoint
@@ -108,7 +109,7 @@ class MirrorListener : NotificationListenerService(), Messaging {
         val r = Ranking()
         PROVIDERS[sbn.packageName]?.let { provider ->
             message(sbn, provider, appName)?.let { m ->
-                deliver(sbn.key, m.envelope())
+                deliver(m)
                 replyAction(n)?.let { action ->
                     replyable.remove(sbn.key)
                     replyable[sbn.key] = Conversation(sbn.key, m.sender, appName) to action
@@ -133,28 +134,45 @@ class MirrorListener : NotificationListenerService(), Messaging {
             category = n.category,
             channel = n.channelId,
         )
-        deliver(sbn.key, note.envelope())
+        deliver(note)
     }
 
     // What came while the wearer was talking with the assistant, newest per notification, and since when.
-    private val held = LinkedHashMap<String, ByteArray>()
+    private val held = LinkedHashMap<String, GlassesNotification>()
     private var heldSince = 0L
 
+    // The provider and uuid of the last notification sent for each key, which a removal names.
+    private val mirrored = LinkedHashMap<String, Pair<Int, String>>()
+
     /** To the glasses now, or once the conversation with the assistant is over. */
-    private fun deliver(key: String, envelope: ByteArray) {
+    private fun deliver(note: GlassesNotification) {
         if (talking()) {
             synchronized(held) {
                 if (held.isEmpty()) heldSince = System.currentTimeMillis()
-                held.remove(key)
-                held[key] = envelope
+                held.remove(note.key)
+                held[note.key] = note
             }
             return
         }
-        send(envelope)
+        send(note)
     }
 
-    private fun send(envelope: ByteArray) =
+    private fun send(note: GlassesNotification) {
+        mirrored.remove(note.key)
+        mirrored[note.key] = note.provider to note.uuid
+        while (mirrored.size > 300) mirrored.remove(mirrored.keys.first())
+        val envelope = note.envelope()
         connection.submit { it.sendOnService(GlassesNotification.SVC, GlassesNotification.MT_UPSERT_CHUNK, envelope) }
+    }
+
+    /** A notification Visor sent is gone from the phone: the glasses take it away too. */
+    override fun onNotificationRemoved(sbn: StatusBarNotification) {
+        // One held and not yet sent goes no further; one already on the glasses is removed.
+        synchronized(held) { held.remove(sbn.key) }
+        val (provider, uuid) = mirrored.remove(sbn.key) ?: return
+        val request = Wire.fieldBytes(1, sbn.key.toByteArray()) + Wire.fieldVarint(2, provider.toLong()) + Wire.fieldBytes(6, uuid.toByteArray())
+        connection.submit { it.sendOnService(GlassesNotification.SVC, GlassesNotification.MT_REMOVE, request) }
+    }
 
     /** The glasses listening, thinking or answering, Visor's model at work, or a Live AI session. */
     private fun talking(): Boolean =

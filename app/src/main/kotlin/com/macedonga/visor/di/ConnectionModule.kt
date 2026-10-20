@@ -44,6 +44,8 @@ import com.macedonga.visor.core.settings.RlDriveResponder
 import com.macedonga.visor.core.settings.SVC_RLDRIVE
 import com.macedonga.visor.core.transport.FileWireLog
 import com.macedonga.visor.core.transport.LinkMeter
+import com.macedonga.visor.notify.GlassesNotification
+import com.macedonga.visor.notify.NotifyIcons
 import com.macedonga.visor.phone.PhoneActions
 import dagger.Module
 import dagger.Provides
@@ -136,6 +138,7 @@ object ConnectionModule {
         hearing: javax.inject.Provider<Hearing>,
         assistant: javax.inject.Provider<Assistant>,
         lease: javax.inject.Provider<com.macedonga.visor.band.DeviceLease>,
+        icons: NotifyIcons,
     ): SessionHostFactory = RealSessionHostFactory(
         transports,
         responders = mapOf(
@@ -145,6 +148,7 @@ object ConnectionModule {
             SVC_ASSISTANT to Responder { message, mux -> assistant.get().respond(message, mux) },
             SVC_GLASSES_PHOTO to photos,
             SVC_TAR to timers,
+            GlassesNotification.SVC to icons,
             SVC_HEARING to Responder { message, mux -> hearing.get().respond(message, mux) },
             ServiceId.CONN_DEVICE_LEASE.value to Responder { message, mux -> lease.get().respond(message, mux) },
         ),
