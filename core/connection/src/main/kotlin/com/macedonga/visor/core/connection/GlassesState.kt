@@ -10,8 +10,11 @@ sealed interface GlassesLink {
     /** An address as `BluetoothAdapter.checkBluetoothAddress` reads it. */
     data class Bluetooth(val address: String) : GlassesLink
 
-    /** The glasses' socket on a Wi-Fi Direct group this phone owns. */
-    data class Wifi(val host: String, val port: Int) : GlassesLink
+    /**
+     * The glasses' socket on Wi-Fi: on a Wi-Fi Direct group this phone owns, or on the glasses' own network, which is
+     * not the phone's default one, so its socket comes from [sockets].
+     */
+    data class Wifi(val host: String, val port: Int, val sockets: javax.net.SocketFactory? = null) : GlassesLink
 }
 
 /** Which glasses, and how to reach them. */

@@ -1,5 +1,6 @@
 package com.macedonga.visor.core.media
 
+import java.security.SecureRandom
 import android.util.Log
 import android.content.Context
 import com.macedonga.visor.core.connection.GlassesConnection
@@ -365,6 +366,10 @@ class LiveStream(
     private val answers = ConcurrentHashMap<Long, CompletableDeferred<StreamAnswer>>()
     private var startAnswer: CompletableDeferred<Long>? = null
     private var joined: CompletableDeferred<JoinResult>? = null
+    // The answer to CreateSoftApNetwork, with the ssid and password it was asked for.
+    private var hosted: Pair<CompletableDeferred<SoftApInfo>, Pair<String, String>>? = null
+    private var onGlassesNetwork = false
+    private var glassesNetwork: GlassesNetwork? = null
     private var nonce = 1
     private var job: Job? = null
     private var lastConfig: VideoConfig? = null
@@ -381,6 +386,7 @@ class LiveStream(
         val groupBand: Int,
         val auto: Boolean = false,
         val liveAi: Boolean = false,
+        val glassesHost: Boolean = false,
     )
 
     // What the user asked for, kept so the watchdog can start the same stream again.
@@ -440,6 +446,9 @@ class LiveStream(
                 when {
                     it.serviceId == 28 && it.messageType == MT_START_APP_RESPONSE -> startAnswer?.complete(Wire.parse(it.payload).varint(1))
                     it.serviceId == SVC_ATC && it.messageType == MT_JOIN_ACCESS_POINT_RESULT -> joined?.complete(parseJoinResult(it.payload))
+                    it.serviceId == SVC_ATC && it.messageType == MT_SOFT_AP_INFO -> hosted?.let { (answer, asked) ->
+                        answer.complete(parseSoftApInfo(it.payload, asked.first, asked.second))
+                    }
                 }
             }
         }
@@ -457,6 +466,7 @@ class LiveStream(
             if (settings.manual) settings.bitrate else top.bitrate,
             if (settings.manual) settings.frameRate else top.frameRate,
             bypassDonCheck = true, overWifi = true, groupBand = BAND_2GHZ, auto = !settings.manual,
+            glassesHost = settings.glassesHost,
         )
     }
 
@@ -486,9 +496,10 @@ class LiveStream(
         groupBand: Int = BAND_2GHZ,
         auto: Boolean = false,
         liveAi: Boolean = false,
+        glassesHost: Boolean = false,
     ) {
         if (job?.isActive == true) return
-        val p = Params(app, session, quality, bitrate, frameRate, bypassDonCheck, overWifi, groupBand, auto, liveAi)
+        val p = Params(app, session, quality, bitrate, frameRate, bypassDonCheck, overWifi, groupBand, auto, liveAi, glassesHost)
         params = p
         _auto.value = auto
         pilot.reset(System.currentTimeMillis())
@@ -506,7 +517,7 @@ class LiveStream(
     }
 
     private suspend fun run(p: Params) {
-        val reuse = p.overWifi && wifi != null && !linkDropped && groupBand == p.groupBand
+        val reuse = p.overWifi && wifi != null && !linkDropped && groupBand == p.groupBand && onGlassesNetwork == p.glassesHost
         if (!reuse && wifi != null) tearDownWifi()
         if (!reuse && connection.state.value.link != LinkState.READY) {
             say("Not connected.")
@@ -534,7 +545,7 @@ class LiveStream(
 
         if (reuse) {
             say("Still on Wi-Fi from the last stream")
-        } else if (p.overWifi && !bringUpWifi(p.groupBand)) {
+        } else if (p.overWifi && !(if (p.glassesHost) bringUpGlassesNetwork() else bringUpWifi(p.groupBand))) {
             finish()
             return
         }
@@ -741,49 +752,94 @@ class LiveStream(
             if (result == null) return false.also { if (_status.value.phase != LivePhase.RESTARTING) fail(LiveProblem.JOIN_FAILED) }
             say("The glasses joined at ${result.address}:${result.port}")
             if (_status.value.phase != LivePhase.RESTARTING) _status.value = LiveStatus(LivePhase.GLASSES)
-
-            val host = hosts.create(GlassesTarget(GlassesLink.Wifi(checkNotNull(result.address), result.port), target.serial), bundle)
-            val ready = CompletableDeferred<Boolean>()
-            // Connect first and let go of Bluetooth after: the window to connect is short.
-            host.start(scope)
-            wifiEvents = scope.launch {
-                host.events.collect { event ->
-                    when (event) {
-                        is LinkStateChanged -> when (event.state) {
-                            LinkState.READY -> ready.complete(true)
-                            LinkState.LOST, LinkState.DISCONNECTED -> if (ready.isCompleted && !tearingDown) {
-                                say("The Wi-Fi link dropped" + if (event.reason.isNotBlank()) ": ${event.reason}" else "")
-                                linkDropped = true
-                            }
-                            else -> Unit
-                        }
-                        is ServiceData -> {
-                            messageAt = System.currentTimeMillis()
-                            onWifiMessage(event)
-                        }
-                        is ProtocolError -> say("Wi-Fi: ${event.detail}")
-                        else -> Unit
-                    }
-                }
-            }
-            wifi = host
-            connection.pause("Paused while the live view runs over Wi-Fi")
-            if (withTimeoutOrNull(45_000) { ready.await() } != true) {
-                say("The glasses did not open a session over Wi-Fi")
-                if (_status.value.phase != LivePhase.RESTARTING) fail(LiveProblem.SESSION_FAILED)
-                false
-            } else {
-                say("Connected over Wi-Fi")
-                keepalive = scope.launch { keepAlive(host) }
-                host.submit { _wifiSession.value = it }
-                true
-            }
+            openWifiSession(target, bundle, checkNotNull(result.address), result.port)
         } catch (unavailable: WifiUnavailable) {
             say("Wi-Fi Direct: ${unavailable.message}")
             if (_status.value.phase != LivePhase.RESTARTING) fail(LiveProblem.JOIN_FAILED)
             false
         } finally {
             joined = null
+        }
+    }
+
+    /**
+     * The glasses host the network and the phone joins it: their own 2.4 GHz network at 20 MHz, where they keep the
+     * width they are asked for. Android asks the person to allow the join. False if it did not work.
+     */
+    private suspend fun bringUpGlassesNetwork(): Boolean {
+        if (!wifiIsOn(context)) return false.also { say("Turn on Wi-Fi first"); fail(LiveProblem.WIFI_OFF) }
+        val target = connection.state.value.target ?: return false.also { fail(LiveProblem.NOT_CONNECTED) }
+        val bundle = withContext(Dispatchers.IO) { store.all().firstOrNull { it.serial == target.serial } }
+            ?: return false.also { say("These glasses have no key on this phone"); fail(LiveProblem.NO_KEY) }
+        val random = SecureRandom()
+        val ssid = "Visor-" + (1..4).joinToString("") { "%x".format(random.nextInt(16)) }
+        val password = (1..20).joinToString("") { NETWORK_ALPHABET[random.nextInt(NETWORK_ALPHABET.length)].toString() }
+        return try {
+            val answer = CompletableDeferred<SoftApInfo>().also { hosted = it to (ssid to password) }
+            connection.submit { createSoftAp(it, ssid, password, countryCode(context)) }
+            say("Asking the glasses to host a network")
+            val info = withTimeoutOrNull(30_000) { answer.await() }
+                ?: return false.also { say("The glasses did not answer"); if (_status.value.phase != LivePhase.RESTARTING) fail(LiveProblem.JOIN_FAILED) }
+            if (!info.ok) return false.also { say("The glasses could not host a network (${info.statusName})"); if (_status.value.phase != LivePhase.RESTARTING) fail(LiveProblem.JOIN_FAILED) }
+            onGlassesNetwork = true
+            say("The glasses host ${info.ssid} at ${info.address}:${info.port}; joining it")
+            val net = GlassesNetwork(context).also { glassesNetwork = it }
+            val network = net.join(info.ssid, info.password)
+            say("The phone is on the glasses' network")
+            if (_status.value.phase != LivePhase.RESTARTING) _status.value = LiveStatus(LivePhase.GLASSES)
+            openWifiSession(target, bundle, checkNotNull(info.address), info.port, network.socketFactory)
+        } catch (unavailable: WifiUnavailable) {
+            say("Wi-Fi: ${unavailable.message}")
+            if (_status.value.phase != LivePhase.RESTARTING) fail(LiveProblem.JOIN_FAILED)
+            false
+        } finally {
+            hosted = null
+        }
+    }
+
+    /** A session with the glasses at [address]:[port] over Wi-Fi, its socket from [sockets] when given. */
+    private suspend fun openWifiSession(
+        target: GlassesTarget,
+        bundle: com.macedonga.visor.core.identity.IdentityBundle,
+        address: String,
+        port: Int,
+        sockets: javax.net.SocketFactory? = null,
+    ): Boolean {
+        val host = hosts.create(GlassesTarget(GlassesLink.Wifi(address, port, sockets), target.serial), bundle)
+        val ready = CompletableDeferred<Boolean>()
+        // Connect first and let go of Bluetooth after: the window to connect is short.
+        host.start(scope)
+        wifiEvents = scope.launch {
+            host.events.collect { event ->
+                when (event) {
+                    is LinkStateChanged -> when (event.state) {
+                        LinkState.READY -> ready.complete(true)
+                        LinkState.LOST, LinkState.DISCONNECTED -> if (ready.isCompleted && !tearingDown) {
+                            say("The Wi-Fi link dropped" + if (event.reason.isNotBlank()) ": ${event.reason}" else "")
+                            linkDropped = true
+                        }
+                        else -> Unit
+                    }
+                    is ServiceData -> {
+                        messageAt = System.currentTimeMillis()
+                        onWifiMessage(event)
+                    }
+                    is ProtocolError -> say("Wi-Fi: ${event.detail}")
+                    else -> Unit
+                }
+            }
+        }
+        wifi = host
+        connection.pause("Paused while the live view runs over Wi-Fi")
+        return if (withTimeoutOrNull(45_000) { ready.await() } != true) {
+            say("The glasses did not open a session over Wi-Fi")
+            if (_status.value.phase != LivePhase.RESTARTING) fail(LiveProblem.SESSION_FAILED)
+            false
+        } else {
+            say("Connected over Wi-Fi")
+            keepalive = scope.launch { keepAlive(host) }
+            host.submit { _wifiSession.value = it }
+            true
         }
     }
 
@@ -842,9 +898,11 @@ class LiveStream(
         val host = wifi
         wifi = null
         if (host != null) {
-            // Leave the group before it goes, as the Meta app does, so the next join finds their Wi-Fi free.
+            // Leave the group before it goes, as the Meta app does, so the next join finds their Wi-Fi free; their own
+            // network they are asked to close instead.
             if (!linkDropped) {
-                host.submit { runCatching { it.sendOnService(SVC_ATC, MT_LEAVE_ACCESS_POINT, ByteArray(0)) } }
+                val leave = if (onGlassesNetwork) MT_DESTROY_SOFT_AP else MT_LEAVE_ACCESS_POINT
+                host.submit { runCatching { it.sendOnService(SVC_ATC, leave, ByteArray(0)) } }
                 delay(300)
             }
             host.stop()
@@ -853,10 +911,15 @@ class LiveStream(
         }
         group?.remove()
         group = null
+        glassesNetwork?.leave()
+        glassesNetwork = null
         if (host != null) {
             connection.resume()
             say("Back on Bluetooth")
         }
+        // Over Wi-Fi they may not have heard it; they close their network on their own soon after anyway.
+        if (onGlassesNetwork) connection.submit { runCatching { it.sendOnService(SVC_ATC, MT_DESTROY_SOFT_AP, ByteArray(0)) } }
+        onGlassesNetwork = false
         tearingDown = false
     }
 
@@ -1011,3 +1074,6 @@ fun nalTypes(data: ByteArray): List<Int> {
     }
     return out
 }
+
+// For the glasses' network's password: letters and digits only, as Android takes any.
+private const val NETWORK_ALPHABET = "abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789"

@@ -21,6 +21,8 @@ data class LiveSettings(
     val rtmpUrl: String = "",
     val rtmpKey: String = "",
     val rtmpCodec: BroadcastCodec = BroadcastCodec.H264,
+    /** The glasses host the network and the phone joins it, instead of the glasses joining the phone's group. */
+    val glassesHost: Boolean = false,
 ) {
     val canBroadcast: Boolean get() = rtmpUrl.startsWith("rtmp://") || rtmpUrl.startsWith("rtmps://")
 }
@@ -44,6 +46,7 @@ class LiveSettingsStore(context: Context) {
             .putString("rtmp_url", next.rtmpUrl)
             .putString("rtmp_key", next.rtmpKey)
             .putString("rtmp_codec", next.rtmpCodec.name)
+            .putBoolean("glasses_host", next.glassesHost)
             .apply()
         _settings.value = next
     }
@@ -61,6 +64,7 @@ class LiveSettingsStore(context: Context) {
             rtmpUrl = prefs.getString("rtmp_url", d.rtmpUrl).orEmpty(),
             rtmpKey = prefs.getString("rtmp_key", d.rtmpKey).orEmpty(),
             rtmpCodec = runCatching { BroadcastCodec.valueOf(prefs.getString("rtmp_codec", null).orEmpty()) }.getOrDefault(d.rtmpCodec),
+            glassesHost = prefs.getBoolean("glasses_host", d.glassesHost),
         )
     }
 }

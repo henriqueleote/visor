@@ -57,6 +57,7 @@ fun LiveSettingsScreen(model: LiveViewModel = hiltViewModel()) {
                     if (settings.manual) row {
                         PillsRow(stringResource(R.string.live_settings_frame_rate), listOf(24, 30).map { it to "$it fps" }, settings.frameRate, { f -> model.update { it.copy(frameRate = f) } })
                     } else null,
+                    row { ToggleRow(stringResource(R.string.live_settings_glasses_host), settings.glassesHost, { on -> model.update { it.copy(glassesHost = on) } }) },
                 )
             }
         }

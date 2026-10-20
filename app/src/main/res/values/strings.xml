@@ -980,4 +980,5 @@
     <string name="band_fit_loose">Loose</string>
     <string name="band_fit_tight">Snug</string>
     <string name="band_wrong_way">Worn the wrong way round</string>
+    <string name="live_settings_glasses_host">Glasses host the Wi-Fi</string>
 </resources>

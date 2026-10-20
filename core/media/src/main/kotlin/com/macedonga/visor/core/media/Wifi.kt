@@ -4,7 +4,12 @@ import android.Manifest
 import android.annotation.SuppressLint
 import android.content.Context
 import android.content.pm.PackageManager
+import android.net.ConnectivityManager
+import android.net.Network
+import android.net.NetworkCapabilities
+import android.net.NetworkRequest
 import android.net.wifi.WifiManager
+import android.net.wifi.WifiNetworkSpecifier
 import android.net.wifi.p2p.WifiP2pConfig
 import android.net.wifi.p2p.WifiP2pGroup
 import android.net.wifi.p2p.WifiP2pManager
@@ -14,6 +19,7 @@ import java.nio.ByteBuffer
 import java.security.SecureRandom
 import java.util.UUID
 import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withTimeoutOrNull
@@ -95,6 +101,92 @@ fun parseJoinResult(payload: ByteArray): JoinResult {
         .firstOrNull { it.isNotEmpty() }
     return JoinResult(f.long(1).toInt(), address, f.long(3).toInt())
 }
+
+private const val MT_CREATE_SOFT_AP = 0x1000
+const val MT_SOFT_AP_INFO = 0x1001
+const val MT_DESTROY_SOFT_AP = 0x1002
+private const val BAND_SOFT_AP_2GHZ = 1L
+private const val SOFT_AP_CHANNEL = 6L
+// Where the glasses listen on every network they are on.
+private const val GLASSES_PORT = 20203
+
+/** SoftApNetworkInfo: 1 status, 2 addresses (NetworkAddress, the text in 3), 3 credentials {1 ssid, 2 password}, 4 port. */
+class SoftApInfo(val status: Int, val address: String?, val port: Int, val ssid: String, val password: String) {
+    val ok: Boolean get() = status == 1 && !address.isNullOrEmpty() && ssid.isNotEmpty()
+    val statusName: String get() = SOFT_AP_STATUS.getOrElse(status) { "status $status" }
+}
+
+private val SOFT_AP_STATUS = listOf("UNKNOWN", "SUCCESS", "INTERNAL_ERROR", "START_AP_FAILED", "GET_IP_FAILED")
+
+/**
+ * CreateSoftApNetwork: the glasses host a network of their own, 2.4 GHz on channel 6 at 20 MHz. It is the one
+ * mode where they take the width they are asked for; joining a network they take its width.
+ */
+suspend fun createSoftAp(connection: DataXConnection, ssid: String, password: String, country: String) {
+    val uuid = UUID.randomUUID()
+    val raw = ByteBuffer.allocate(16).putLong(uuid.mostSignificantBits).putLong(uuid.leastSignificantBits).array()
+    val payload = ProtoWriter().varint(3, BAND_SOFT_AP_2GHZ).varint(4, SOFT_AP_CHANNEL).string(6, country).bytes(7, raw)
+        .bytes(8, ProtoWriter().string(1, ssid).string(2, password).build()).varint(9, BW_20MHZ.toLong()).build()
+    connection.sendOnService(SVC_ATC, MT_CREATE_SOFT_AP, payload)
+}
+
+/** Their reply; the credentials they used, else [ssid] and [password], and port 20203 when they leave it out. */
+fun parseSoftApInfo(payload: ByteArray, ssid: String, password: String): SoftApInfo {
+    val f = fields(payload)
+    val address = f[2].orEmpty().filterIsInstance<ByteArray>()
+        .map { fields(it).bytes(3).decodeToString() }
+        .firstOrNull { it.isNotEmpty() }
+        ?.substringBefore('/')
+    val credentials = f[3].orEmpty().filterIsInstance<ByteArray>().firstOrNull()?.let(::fields)
+    val theirSsid = credentials?.bytes(1)?.decodeToString().orEmpty()
+    val theirPassword = credentials?.bytes(2)?.decodeToString().orEmpty()
+    return SoftApInfo(
+        f.long(1).toInt(), address, f.long(4).toInt().takeIf { it > 0 } ?: GLASSES_PORT,
+        theirSsid.ifEmpty { ssid }, theirPassword.ifEmpty { password },
+    )
+}
+
+/**
+ * The phone on the glasses' own network, beside its own and not in place of it: Android asks the person to allow
+ * the join, and the network carries no internet, so the phone keeps its own for everything else.
+ */
+class GlassesNetwork(private val context: Context) {
+    private var callback: ConnectivityManager.NetworkCallback? = null
+
+    suspend fun join(ssid: String, password: String, timeoutMs: Int = 60_000): Network = suspendCancellableCoroutine { waiting ->
+        val manager = context.getSystemService(ConnectivityManager::class.java)
+        val specifier = WifiNetworkSpecifier.Builder().setSsid(ssid).setWpa2Passphrase(password).build()
+        val request = NetworkRequest.Builder()
+            .addTransportType(NetworkCapabilities.TRANSPORT_WIFI)
+            .removeCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+            .setNetworkSpecifier(specifier)
+            .build()
+        val answered = java.util.concurrent.atomic.AtomicBoolean(false)
+        val cb = object : ConnectivityManager.NetworkCallback() {
+            override fun onAvailable(network: Network) {
+                if (answered.compareAndSet(false, true)) waiting.resume(network)
+            }
+
+            override fun onUnavailable() {
+                if (answered.compareAndSet(false, true)) waiting.resumeWithException(WifiUnavailable("the phone did not join the glasses' network"))
+            }
+        }
+        callback = cb
+        manager.requestNetwork(request, cb, timeoutMs)
+        waiting.invokeOnCancellation { leave() }
+    }
+
+    fun leave() {
+        val cb = callback ?: return
+        callback = null
+        runCatching { context.getSystemService(ConnectivityManager::class.java).unregisterNetworkCallback(cb) }
+    }
+}
+
+/** The country code the glasses' network starts with: the mobile network's, else the phone's region. */
+fun countryCode(context: Context): String =
+    context.getSystemService(android.telephony.TelephonyManager::class.java)?.networkCountryIso?.uppercase()?.takeIf { it.length == 2 }
+        ?: java.util.Locale.getDefault().country.takeIf { it.length == 2 } ?: "US"
 
 /**
  * What Wi-Fi Direct needs at runtime: location before Android 13, Nearby devices from 13, and from

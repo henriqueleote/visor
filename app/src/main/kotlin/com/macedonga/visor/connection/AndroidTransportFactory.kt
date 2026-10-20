@@ -32,6 +32,6 @@ class AndroidTransportFactory(
                 onLe = { kind?.set(it) },
             )
         }
-        is GlassesLink.Wifi -> TcpTransport(link.host, link.port, wifiMeter)
+        is GlassesLink.Wifi -> TcpTransport(link.host, link.port, wifiMeter, link.sockets)
     }
 }

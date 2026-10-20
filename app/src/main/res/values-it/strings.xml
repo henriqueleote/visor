@@ -978,4 +978,5 @@
     <string name="band_fit_loose">Larga</string>
     <string name="band_fit_tight">Aderente</string>
     <string name="band_wrong_way">Indossato al contrario</string>
+    <string name="live_settings_glasses_host">Wi-Fi creato dagli occhiali</string>
 </resources>

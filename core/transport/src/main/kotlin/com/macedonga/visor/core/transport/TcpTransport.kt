@@ -8,7 +8,13 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 /** The glasses' own socket on Wi-Fi. It carries raw SDUs, framed exactly as on RFCOMM. */
-class TcpTransport(private val host: String, private val port: Int, private val meter: WireLog? = null) : Transport {
+class TcpTransport(
+    private val host: String,
+    private val port: Int,
+    private val meter: WireLog? = null,
+    // A network other than the phone's default, such as the glasses' own, hands out its own sockets.
+    private val sockets: javax.net.SocketFactory? = null,
+) : Transport {
 
     @Volatile
     private var socket: Socket? = null
@@ -17,7 +23,7 @@ class TcpTransport(private val host: String, private val port: Int, private val 
     private var stream: SduStream? = null
 
     override suspend fun connect() = withContext(Dispatchers.IO) {
-        val opening = Socket()
+        val opening = sockets?.createSocket() ?: Socket()
         try {
             opening.connect(InetSocketAddress(host, port), CONNECT_TIMEOUT_MILLIS)
             opening.tcpNoDelay = true

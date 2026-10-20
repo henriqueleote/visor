@@ -906,4 +906,5 @@
     <string name="hct_retry">Повторить</string>
     <string name="phone_directions">Маршрут до %1$s</string>
     <string name="phone_play">Воспроизвести %1$s</string>
+    <string name="live_settings_glasses_host">Wi-Fi создают очки</string>
 </resources>
