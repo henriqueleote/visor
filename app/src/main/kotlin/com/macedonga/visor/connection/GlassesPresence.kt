@@ -5,8 +5,6 @@ import android.companion.CompanionDeviceManager
 import android.companion.CompanionDeviceService
 import android.companion.DevicePresenceEvent
 import androidx.annotation.RequiresApi
-import com.macedonga.visor.core.connection.GlassesLink
-import com.macedonga.visor.core.connection.GlassesTarget
 import com.macedonga.visor.core.identity.IdentityStore
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
@@ -37,11 +35,11 @@ class GlassesPresence : CompanionDeviceService() {
     @Suppress("OVERRIDE_DEPRECATION")
     override fun onDeviceAppeared(address: String) = appeared(address)
 
-    /** Starts the service for the stored pair at [address], and for no other glasses. */
+    /** Reaches the pair Visor is for when it is the one at [address]; another pair stays as it is. */
     private fun appeared(address: String?) {
         if (address == null) return
-        val bundle = runBlocking(Dispatchers.IO) { store.all() }
-            .firstOrNull { it.glassesAddress.equals(address, ignoreCase = true) } ?: return
-        GlassesService.start(this, GlassesTarget(GlassesLink.Bluetooth(bundle.glassesAddress), bundle.serial))
+        val current = runBlocking(Dispatchers.IO) { store.currentSerial()?.let { serial -> store.all().firstOrNull { it.serial == serial } } } ?: return
+        if (!current.glassesAddress.equals(address, ignoreCase = true)) return
+        GlassesService.reconnect(this)
     }
 }
