@@ -8,6 +8,7 @@ import com.macedonga.visor.core.assistant.Assistant
 import com.macedonga.visor.core.assistant.Hearing
 import com.macedonga.visor.core.assistant.Timers
 import com.macedonga.visor.core.connection.GlassesConnection
+import com.macedonga.visor.core.connection.GlassesWifi
 import com.macedonga.visor.core.connection.GlassesState
 import com.macedonga.visor.core.media.LiveStream
 import com.macedonga.visor.core.media.MediaImport
@@ -37,6 +38,7 @@ class EventLog @Inject constructor(
     keeper: LeKeeper,
     media: MediaImport,
     settings: GlassesSettings,
+    wifi: GlassesWifi,
     live: LiveStream,
     assistant: Assistant,
     tools: com.macedonga.visor.core.assistant.mcp.McpHub,
@@ -79,6 +81,9 @@ class EventLog @Inject constructor(
         }
         scope.launch {
             settings.notes.collect { add("Settings: $it") }
+        }
+        scope.launch {
+            wifi.notes.collect { add("Wi-Fi networks: $it") }
         }
         scope.launch {
             live.notes.collect { add("Live: $it") }

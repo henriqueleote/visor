@@ -28,6 +28,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
 import androidx.navigation3.runtime.NavKey
 import com.macedonga.visor.OnboardingKey
+import com.macedonga.visor.WifiNetworksKey
 import com.macedonga.visor.R
 import com.macedonga.visor.connection.GlassesService
 import com.macedonga.visor.connection.LinkKind
@@ -217,6 +218,7 @@ fun GlassesPage(open: (NavKey) -> Unit, model: GlassesPageModel = hiltViewModel(
                             }
                         }
                     }.toTypedArray(),
+                    if (hasDisplay(info?.build)) row { ValueRow(stringResource(R.string.wifi_networks), null, onClick = { open(WifiNetworksKey) }, locked = !ready) } else null,
                 )
             }
         }

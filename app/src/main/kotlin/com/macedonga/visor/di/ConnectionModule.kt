@@ -23,6 +23,7 @@ import com.macedonga.visor.core.assistant.Voice
 import com.macedonga.visor.core.assistant.mcp.McpHub
 import com.macedonga.visor.core.assistant.mcp.McpStore
 import com.macedonga.visor.core.connection.GlassesConnection
+import com.macedonga.visor.core.connection.GlassesWifi
 import com.macedonga.visor.core.connection.RealSessionHostFactory
 import com.macedonga.visor.core.connection.SessionHostFactory
 import com.macedonga.visor.core.connection.TransportFactory
@@ -270,4 +271,8 @@ object ConnectionModule {
     @Singleton
     fun glassesSettings(connection: GlassesConnection, drive: RlDriveResponder): GlassesSettings =
         GlassesSettings(connection, drive)
+
+    @Provides
+    @Singleton
+    fun glassesWifi(connection: GlassesConnection): GlassesWifi = GlassesWifi(connection)
 }
