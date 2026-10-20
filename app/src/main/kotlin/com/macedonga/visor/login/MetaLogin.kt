@@ -11,7 +11,9 @@ import com.macedonga.visor.core.identity.UrlConnectionPost
 import com.macedonga.visor.core.identity.bloks.BloksClient
 import com.macedonga.visor.core.identity.bloks.BloksHost
 import com.macedonga.visor.core.identity.bloks.BloksSession
+import com.macedonga.visor.core.identity.pyUrlencode
 import com.macedonga.visor.core.identity.token.AuthorizeRequest
+import com.macedonga.visor.core.identity.token.Token
 import com.macedonga.visor.core.identity.token.WebLoginSource
 import com.macedonga.visor.log.EventLog
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -27,6 +29,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import org.json.JSONObject
 
 /** The Meta login, for as long as the process lives. */
 @Singleton
@@ -68,6 +71,25 @@ class MetaLogin @Inject constructor(
         pending = it
         log.add("Login: opening Meta's login page")
     }
+
+    /** One query on Meta's ar GraphQL as the user, its answer as text. A token Meta has dropped is replaced, once. */
+    fun graphql(name: String, doc: String, variables: String): String {
+        val body = pyUrlencode(
+            linkedMapOf(
+                "fb_api_req_friendly_name" to name, "client_doc_id" to doc, "variables" to variables,
+                "method" to "post", "locale" to "en_US", "pretty" to "false", "format" to "json",
+            ),
+        ).toByteArray()
+        val token = source.get()
+        val answer = post(token, body)
+        // OAuthException 190: the session behind the token has ended.
+        if (runCatching { JSONObject(answer).optJSONObject("error")?.optInt("code") }.getOrNull() != 190) return answer
+        source.forget(token)
+        return post(source.get(), body)
+    }
+
+    private fun post(token: Token, body: ByteArray): String =
+        String(UrlConnectionPost.post(GRAPH_URL, mapOf("Authorization" to "OAuth ${token.value}", "Content-Type" to "application/x-www-form-urlencoded"), body).body)
 
     /** What the login page saw: hosts, paths and statuses, never a query string. */
     fun note(text: String) = log.add("Login page: $text")
@@ -172,6 +194,7 @@ class MetaLogin @Inject constructor(
 
     companion object {
         private const val TRACE_LIMIT = 4L * 1024 * 1024
+        private const val GRAPH_URL = "https://ar-genai.graph.meta.com/graphql"
 
         /** Every Bloks call of the last native login, shared with the event log. */
         fun traceFile(context: Context): File = File(context.filesDir, "bloks-trace.log")

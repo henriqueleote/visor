@@ -219,7 +219,8 @@ class DataFetcher @Inject constructor(
     }
 
     private suspend fun send(mux: DataXConnection, reply: Int, data: ByteArray, total: Long, compressed: Boolean) {
-        val body = Wire.fieldBytes(1, data) + Wire.fieldVarint(2, if (compressed) 1 else 0) + Wire.fieldVarint(3, total.coerceIn(-1, Int.MAX_VALUE.toLong()))
+        // An unknown length goes as 0: the field is an int32, and a negative one does not encode here.
+        val body = Wire.fieldBytes(1, data) + Wire.fieldVarint(2, if (compressed) 1 else 0) + Wire.fieldVarint(3, total.coerceIn(0, Int.MAX_VALUE.toLong()))
         mux.send(reply, body, messageType = MT_REQUEST)
     }
 

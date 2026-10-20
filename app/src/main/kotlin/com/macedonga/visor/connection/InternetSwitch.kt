@@ -32,6 +32,13 @@ class InternetSwitch @Inject constructor(
 ) : Responder {
     private val watching = AtomicBoolean(false)
 
+    /** False keeps the Display off the phone's internet: it is told the phone is offline. */
+    @Volatile var sharing = true
+        set(value) {
+            field = value
+            push()
+        }
+
     override suspend fun respond(message: DataXMessage, mux: DataXConnection) {
         if (message.info.messageType != MT_LISTEN) return
         val state = phoneInternet()
@@ -62,6 +69,7 @@ class InternetSwitch @Inject constructor(
     private data class PhoneInternet(val connected: Boolean, val metered: Boolean, val dns: List<String>)
 
     private fun phoneInternet(): PhoneInternet {
+        if (!sharing) return PhoneInternet(false, false, emptyList())
         val cm = context.getSystemService(ConnectivityManager::class.java) ?: return PhoneInternet(false, false, emptyList())
         val network = cm.activeNetwork
         val caps = network?.let { cm.getNetworkCapabilities(it) }

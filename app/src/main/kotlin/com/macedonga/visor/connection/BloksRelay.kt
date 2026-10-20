@@ -1,7 +1,5 @@
 package com.macedonga.visor.connection
 
-import com.macedonga.visor.core.identity.UrlConnectionPost
-import com.macedonga.visor.core.identity.pyUrlencode
 import com.macedonga.visor.core.protocol.Wire
 import com.macedonga.visor.core.session.DataXConnection
 import com.macedonga.visor.core.session.DataXMessage
@@ -62,24 +60,17 @@ class BloksRelay @Inject constructor(
     }
 
     private fun fetch(r: Request, q: Query): String {
-        val token = login.get().source.get()
         val params = JSONObject().put("app_id", r.appId).put("params", JSONObject(r.params as Map<*, *>).toString())
             .put("bloks_versioning_id", r.versioningId)
         if (r.prebundled) params.put("is_prebundled", true)
         val context = JSONObject().put("pixel_ratio", r.pixelRatio).put("bloks_version", r.versioningId)
             .put("theme_params", JSONArray().put(JSONObject().put("design_system_name", r.designSystem).put("value", JSONArray(r.themeValues))))
         val variables = JSONObject().put("params", params).put("bk_context", context)
-        val body = pyUrlencode(
-            linkedMapOf(
-                "fb_api_req_friendly_name" to q.name, "client_doc_id" to q.doc, "variables" to variables.toString(),
-                "method" to "post", "locale" to "en_US", "pretty" to "false", "format" to "json",
-            ),
-        )
-        val answer = UrlConnectionPost.post(GRAPH_URL, mapOf("Authorization" to "OAuth ${token.value}", "Content-Type" to "application/x-www-form-urlencoded"), body.toByteArray())
-        val json = JSONObject(String(answer.body))
+        val answer = login.get().graphql(q.name, q.doc, variables.toString())
+        val json = JSONObject(answer)
         json.optJSONArray("errors")?.let { error(it.optJSONObject(0)?.optString("message") ?: "Meta refused it") }
         // data.<the query's field>.<the bundle>: the first string under the first object, whatever Meta names them.
-        val data = json.getJSONObject("data")
+        val data = json.optJSONObject("data") ?: error(json.optJSONObject("error")?.optString("message") ?: answer.take(300))
         val root = data.keys().asSequence().mapNotNull { data.optJSONObject(it) }.firstOrNull() ?: error("no answer in the reply")
         return root.keys().asSequence().mapNotNull { k -> root.opt(k) as? String }.firstOrNull { it.startsWith("{") } ?: error("no bundle in the reply")
     }
@@ -112,7 +103,6 @@ class BloksRelay @Inject constructor(
 
     companion object {
         const val SVC = 43
-        private const val GRAPH_URL = "https://ar-genai.graph.meta.com/graphql"
         private val QUERIES = mapOf(
             9 to Query("CompanionBloksComponentQuery", "37274295535564761374285150560", 10),
             11 to Query("CompanionBloksAsyncActionQuery", "35737516989272377596036696859", 12),

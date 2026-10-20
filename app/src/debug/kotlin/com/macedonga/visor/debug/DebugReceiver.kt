@@ -65,6 +65,7 @@ class DebugReceiver : BroadcastReceiver() {
     @Inject lateinit var screencast: com.macedonga.visor.core.media.Screencast
     @Inject lateinit var requests: com.macedonga.visor.connection.RequestLog
     @Inject lateinit var login: com.macedonga.visor.login.MetaLogin
+    @Inject lateinit var internet: com.macedonga.visor.connection.InternetSwitch
 
     override fun onReceive(context: Context, intent: Intent) {
         val action = intent.action?.substringAfterLast('.').orEmpty()
@@ -348,21 +349,30 @@ class DebugReceiver : BroadcastReceiver() {
             // --es doc <client_doc_id> --es name <friendly name> --es vars <json>: one query on Meta's ar GraphQL, as the
             // user; the answer's first 4000 characters.
             "GRAPHQL" -> answerLater {
-                val token = login.source.get()
-                val body = com.macedonga.visor.core.identity.pyUrlencode(
-                    linkedMapOf(
-                        "fb_api_req_friendly_name" to intent.getStringExtra("name").orEmpty(),
-                        "client_doc_id" to intent.getStringExtra("doc").orEmpty(),
-                        "variables" to (intent.getStringExtra("vars64")?.let { String(android.util.Base64.decode(it, 0)) } ?: intent.getStringExtra("vars") ?: "{}"),
-                        "method" to "post", "locale" to "en_US", "pretty" to "false", "format" to "json",
-                    ),
+                val text = login.graphql(
+                    intent.getStringExtra("name").orEmpty(),
+                    intent.getStringExtra("doc").orEmpty(),
+                    intent.getStringExtra("vars64")?.let { String(android.util.Base64.decode(it, 0)) } ?: intent.getStringExtra("vars") ?: "{}",
                 )
-                val reply = com.macedonga.visor.core.identity.UrlConnectionPost.post(
-                    "https://ar-genai.graph.meta.com/graphql",
-                    mapOf("Authorization" to "OAuth ${token.value}", "Content-Type" to "application/x-www-form-urlencoded"),
-                    body.toByteArray(),
-                )
-                "HTTP ${reply.status}: " + String(reply.body).take(4000)
+                if (!intent.getBooleanExtra("shape", false)) text.take(4000) else {
+                    // Every path with its type, a string's length and start: the structure without the bulk.
+                    val out = StringBuilder()
+                    fun walk(path: String, v: Any?) {
+                        when (v) {
+                            is org.json.JSONObject -> v.keys().forEach { walk("$path.$it", v.opt(it)) }
+                            is org.json.JSONArray -> { out.append("$path [${v.length()}]\n"); if (v.length() > 0) walk("$path[0]", v.opt(0)) }
+                            is String -> out.append("$path str(${v.length}) ${v.take(60).replace('\n', ' ')}\n")
+                            else -> out.append("$path = $v\n")
+                        }
+                    }
+                    walk("", org.json.JSONObject(text))
+                    out.toString().take(4000)
+                }
+            }
+            // --ez on false: tell the Display the phone is offline, so it keeps its apps off the phone's internet.
+            "INTERNET" -> {
+                internet.sharing = intent.getBooleanExtra("on", true)
+                resultData = "sharing=${internet.sharing}"
             }
             // The request log's newest entries, links cut at their query.
             "REQUESTS" -> resultData = requests.items.value.takeLast(intent.getIntExtra("n", 30)).joinToString("\n") {
