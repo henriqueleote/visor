@@ -158,6 +158,9 @@ data object PrompterKey : NavKey
 data object GesturesKey : NavKey
 
 @Serializable
+data object CaptionsKey : NavKey
+
+@Serializable
 data object WifiNetworksKey : NavKey
 
 /** The app's graph: the home, and every screen it opens. */
@@ -218,6 +221,7 @@ fun VisorNav(opens: kotlinx.coroutines.flow.Flow<String>, markAtLaunch: Boolean)
                         onDisplayTool = { tool ->
                             when (tool) {
                                 com.macedonga.visor.display.DisplayTool.TELEPROMPTER -> backStack.add(PrompterKey)
+                                com.macedonga.visor.display.DisplayTool.CAPTIONS -> backStack.add(CaptionsKey)
                                 com.macedonga.visor.display.DisplayTool.GESTURES -> backStack.add(GesturesKey)
                                 com.macedonga.visor.display.DisplayTool.MIRROR -> backStack.add(MirrorKey)
                             }
@@ -277,6 +281,7 @@ fun VisorNav(opens: kotlinx.coroutines.flow.Flow<String>, markAtLaunch: Boolean)
                 entry<NotifyAppsKey> { NotifyAppsScreen() }
                 entry<PrompterKey> { com.macedonga.visor.display.PrompterScreen() }
                 entry<GesturesKey> { com.macedonga.visor.display.GesturesScreen() }
+                entry<CaptionsKey> { com.macedonga.visor.display.CaptionsScreen() }
                 entry<WifiNetworksKey> { com.macedonga.visor.settings.WifiNetworksScreen() }
                 entry<MetaAiKey> {
                     MetaAiScreen(

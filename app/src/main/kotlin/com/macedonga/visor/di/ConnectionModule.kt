@@ -171,6 +171,11 @@ object ConnectionModule {
 
     @Provides
     @Singleton
+    fun captions(connection: GlassesConnection): com.macedonga.visor.core.connection.Captions =
+        com.macedonga.visor.core.connection.Captions(connection)
+
+    @Provides
+    @Singleton
     fun assistantConfig(@ApplicationContext context: Context): AssistantConfigStore = AssistantConfigStore(context)
 
     @Provides

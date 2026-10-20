@@ -252,7 +252,7 @@ private fun PrompterBar(
 }
 
 @Composable
-private fun WidePill(text: String, onClick: () -> Unit, modifier: Modifier, quiet: Boolean = false, enabled: Boolean = true) {
+internal fun WidePill(text: String, onClick: () -> Unit, modifier: Modifier, quiet: Boolean = false, enabled: Boolean = true) {
     Box(
         modifier
             .height(52.dp)
@@ -299,7 +299,7 @@ private fun ScriptSheet(text: String, onText: (String) -> Unit, onDismiss: () ->
 }
 
 @Composable
-private fun refusalWords(code: Long): String = stringResource(
+internal fun refusalWords(code: Long): String = stringResource(
     when (code) {
         Teleprompter.SNAPP_NOT_ENOUGH_BATTERY -> R.string.prompter_refused_battery
         Teleprompter.SNAPP_THERMAL_THROTTLING -> R.string.prompter_refused_heat

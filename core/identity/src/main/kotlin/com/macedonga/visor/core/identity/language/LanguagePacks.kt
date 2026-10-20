@@ -28,6 +28,10 @@ data class PackOffer(
     val url: String,
     val size: Long,
     val sha256: String,
+    /** What the glasses' OTA install names it by, e.g. `7506485332707669`. */
+    val appId: String = "",
+    /** e.g. `RESOURCE_PACK`. */
+    val type: String = "",
 )
 
 const val LANGUAGE_FEATURE = "com.meta.constellation.feature.air.language_"
@@ -105,6 +109,8 @@ fun fetchPackOffers(
                     url = o.text("file_uri") ?: return@mapNotNull null,
                     size = (o["file_size"] as? JsonPrimitive)?.longOrNull ?: o.text("file_size")?.toLongOrNull() ?: 0,
                     sha256 = o.text("file_checksum").orEmpty(),
+                    appId = o.text("app_id").orEmpty(),
+                    type = o.text("resource_type").orEmpty(),
                 )
             }
         }

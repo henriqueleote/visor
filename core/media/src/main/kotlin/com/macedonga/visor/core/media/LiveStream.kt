@@ -352,6 +352,10 @@ class LiveStream(
     private val _wifiSession = MutableStateFlow<DataXConnection?>(null)
     val wifiSession: StateFlow<DataXConnection?> = _wifiSession.asStateFlow()
 
+    // What the glasses send on the Wi-Fi session, for work run there with overWifi.
+    private val _wifiData = kotlinx.coroutines.flow.MutableSharedFlow<ServiceData>(extraBufferCapacity = 256)
+    val wifiData: kotlinx.coroutines.flow.SharedFlow<ServiceData> = _wifiData
+
     /** The picture now as a JPEG, decoded from the replay ring; null when no Live runs. */
     suspend fun frameNow(): ByteArray? = if (_running.value) outputs.replay.lastPicture()?.let { grabJpeg(it, quality = 88) } else null
 
@@ -848,6 +852,7 @@ class LiveStream(
                     }
                     is ServiceData -> {
                         messageAt = System.currentTimeMillis()
+                        _wifiData.tryEmit(event)
                         onWifiMessage(event)
                     }
                     is ProtocolError -> say("Wi-Fi: ${event.detail}")

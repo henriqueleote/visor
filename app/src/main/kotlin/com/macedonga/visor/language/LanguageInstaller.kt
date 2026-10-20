@@ -14,18 +14,12 @@ import com.macedonga.visor.login.MetaLogin
 import com.macedonga.visor.pairs.pairPrefs
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.File
-import java.io.FileOutputStream
-import java.net.HttpURLConnection
-import java.net.URL
-import java.security.MessageDigest
 import javax.inject.Inject
 import javax.inject.Singleton
-import kotlin.coroutines.coroutineContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -34,7 +28,6 @@ import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 /** Where an install is. [done] and [total] are bytes for the download and the transfer. */
 sealed interface LanguageWork {
@@ -120,7 +113,7 @@ class LanguageInstaller @Inject constructor(
                 if (!zip.exists()) {
                     if (dir.usableSpace < offer.size + SPARE_BYTES) error("the phone needs ${mb(offer.size + SPARE_BYTES)} free")
                     log.add("Language: downloading ${offer.resource} ${offer.version}, ${mb(offer.size)}")
-                    download(offer, zip) { done -> _work.value = LanguageWork.Working(language, LanguageWork.Step.DOWNLOADING, done, offer.size) }
+                    downloadPack(offer, zip) { done -> _work.value = LanguageWork.Working(language, LanguageWork.Step.DOWNLOADING, done, offer.size) }
                 }
                 if (connection.state.value.link != LinkState.READY) error("the glasses are not connected")
                 step(language, LanguageWork.Step.SENDING, 0, zip.length())
@@ -169,7 +162,10 @@ class LanguageInstaller @Inject constructor(
         prefs.edit().putStringSet(KEY_INSTALLED, _installed.value - "en_US").apply()
     }
 
-    private fun ask(packs: List<String>): List<PackOffer> {
+    private fun ask(packs: List<String>): List<PackOffer> = offersFor(packs.map { LANGUAGE_FEATURE + it })
+
+    /** What Meta has for these glasses under the constellation [features], named in full. */
+    fun offersFor(features: List<String>): List<PackOffer> {
         val info = connection.state.value.info ?: error("connect the glasses once, so they say which they are")
         // Meta/hammerhead/greathammerhead:14/UKQ1.250303.001/72387580077200100:user/release-keys
         val parts = info.build.split('/')
@@ -177,62 +173,7 @@ class LanguageInstaller @Inject constructor(
         val type = parts.getOrNull(4)?.substringAfter(':', "user").orEmpty()
         if (firmware.isEmpty()) error("the glasses' build is unknown")
         val token = login.source.get()
-        return fetchPackOffers(token, info.serial, firmware, packs.map { LANGUAGE_FEATURE + it }, "ota.${parts.getOrElse(1) { "hammerhead" }}.$type")
-    }
-
-    /** The zip, resumed where an earlier try stopped, checked against Meta's SHA-256. */
-    private suspend fun download(offer: PackOffer, file: File, onProgress: (Long) -> Unit) = withContext(Dispatchers.IO) {
-        val part = File(file.path + ".part")
-        var have = if (part.exists()) part.length() else 0L
-        val c = URL(offer.url).openConnection() as HttpURLConnection
-        try {
-            c.connectTimeout = 30_000
-            c.readTimeout = 60_000
-            if (have > 0) c.setRequestProperty("Range", "bytes=$have-")
-            when (c.responseCode) {
-                206 -> Unit
-                200 -> have = 0
-                else -> error("the download answered ${c.responseCode}")
-            }
-            FileOutputStream(part, have > 0).use { out ->
-                c.inputStream.use { input ->
-                    val buffer = ByteArray(256 * 1024)
-                    var lastReport = 0L
-                    while (true) {
-                        coroutineContext.ensureActive()
-                        val n = input.read(buffer)
-                        if (n < 0) break
-                        out.write(buffer, 0, n)
-                        have += n
-                        if (have - lastReport > 1_000_000) {
-                            lastReport = have
-                            onProgress(have)
-                        }
-                    }
-                }
-            }
-        } finally {
-            c.disconnect()
-        }
-        onProgress(have)
-        if (offer.sha256.isNotEmpty() && sha256(part) != offer.sha256.lowercase()) {
-            part.delete()
-            error("the download did not match Meta's checksum; try again")
-        }
-        check(part.renameTo(file)) { "could not keep the download" }
-    }
-
-    private fun sha256(file: File): String {
-        val digest = MessageDigest.getInstance("SHA-256")
-        file.inputStream().use { input ->
-            val buffer = ByteArray(1024 * 1024)
-            while (true) {
-                val n = input.read(buffer)
-                if (n < 0) break
-                digest.update(buffer, 0, n)
-            }
-        }
-        return digest.digest().joinToString("") { "%02x".format(it) }
+        return fetchPackOffers(token, info.serial, firmware, features, "ota.${parts.getOrElse(1) { "hammerhead" }}.$type")
     }
 
     private companion object {

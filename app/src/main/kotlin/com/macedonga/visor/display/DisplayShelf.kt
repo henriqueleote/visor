@@ -35,7 +35,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 
 /** What the Display's cards on the home open. */
-enum class DisplayTool { TELEPROMPTER, GESTURES, MIRROR }
+enum class DisplayTool { TELEPROMPTER, CAPTIONS, GESTURES, MIRROR }
 
 @HiltViewModel
 class ShelfModel @Inject constructor(
@@ -44,6 +44,8 @@ class ShelfModel @Inject constructor(
     val band: com.macedonga.visor.band.BandLink,
     val connection: com.macedonga.visor.core.connection.GlassesConnection,
     val screencast: com.macedonga.visor.core.media.Screencast,
+    val captions: com.macedonga.visor.core.connection.Captions,
+    val captionsChoices: CaptionsChoices,
 ) : ViewModel()
 
 /** The Display's tools on the home: a card each, with what it holds now. */
@@ -66,6 +68,16 @@ fun DisplayShelf(onOpen: (DisplayTool) -> Unit, modifier: Modifier = Modifier, m
                     else -> pluralStringResource(R.plurals.prompter_words, words, words)
                 },
                 onClick = { onOpen(DisplayTool.TELEPROMPTER) },
+            )
+        }
+        item(key = "captions") {
+            val captions by model.captions.state.collectAsStateWithLifecycle()
+            val choice by model.captionsChoices.choice.collectAsStateWithLifecycle()
+            ToolCard(
+                VisorIcons.Captions,
+                stringResource(R.string.captions_title),
+                if (captions.phase == com.macedonga.visor.core.connection.CaptionsPhase.LIVE) stringResource(R.string.captions_live) else captionsSummary(choice),
+                onClick = { onOpen(DisplayTool.CAPTIONS) },
             )
         }
         item(key = "gestures") {

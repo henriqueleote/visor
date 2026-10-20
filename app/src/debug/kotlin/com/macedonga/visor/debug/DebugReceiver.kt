@@ -59,6 +59,9 @@ class DebugReceiver : BroadcastReceiver() {
     @Inject lateinit var looks: com.macedonga.visor.stage.Looks
     @Inject lateinit var phone: com.macedonga.visor.phone.PhoneActions
     @Inject lateinit var prompter: com.macedonga.visor.core.connection.Teleprompter
+    @Inject lateinit var captions: com.macedonga.visor.core.connection.Captions
+    @Inject lateinit var languages: com.macedonga.visor.language.LanguageInstaller
+    @Inject lateinit var captionPacks: com.macedonga.visor.display.CaptionPacks
 
     override fun onReceive(context: Context, intent: Intent) {
         val action = intent.action?.substringAfterLast('.').orEmpty()
@@ -316,6 +319,37 @@ class DebugReceiver : BroadcastReceiver() {
                     prompter.state.first { it.phase != com.macedonga.visor.core.connection.PrompterPhase.STARTING && it.phase != com.macedonga.visor.core.connection.PrompterPhase.CLOSING }
                 }
                 prompter.state.value.let { "${it.phase} refusal=${it.refusal}" }
+            }
+            // --es features a,b: what Meta has for these constellation features on this pair.
+            "PACKS" -> answerLater {
+                val features = intent.getStringExtra("features").orEmpty().split(',').map { it.trim() }.filter { it.isNotEmpty() }
+                runCatching { languages.offersFor(features) }.fold(
+                    { offers -> offers.joinToString("\n") { "${it.feature} ${it.resource} ${it.version} ${it.type} app ${it.appId} ${it.size} ${it.url}" }.ifEmpty { "none" } },
+                    { "failed: ${it.message}" },
+                )
+            }
+            // --es feature live_captions_en: Meta's pack installed through the glasses' OTA service.
+            "CAPTION_PACK" -> answerLater {
+                captionPacks.install(intent.getStringExtra("feature") ?: "live_captions_en")
+                kotlinx.coroutines.delay(500)
+                withTimeoutOrNull(600_000) { captionPacks.work.first { it !is com.macedonga.visor.display.PackWork.Working } }
+                captionPacks.work.value.toString()
+            }
+            "CAPTIONS" -> answerLater {
+                val self = intent.getStringExtra("lang") ?: "en"
+                when {
+                    intent.getBooleanExtra("stop", false) -> captions.stop()
+                    intent.getBooleanExtra("show", false) -> Unit
+                    else -> captions.start(
+                        if (intent.hasExtra("other")) com.macedonga.visor.core.connection.CaptionsMode.TRANSLATION else com.macedonga.visor.core.connection.CaptionsMode.CAPTIONS,
+                        self, intent.getStringExtra("other") ?: self,
+                    )
+                }
+                kotlinx.coroutines.delay(300)
+                withTimeoutOrNull(8_000) {
+                    captions.state.first { it.phase == com.macedonga.visor.core.connection.CaptionsPhase.LIVE || it.phase == com.macedonga.visor.core.connection.CaptionsPhase.IDLE }
+                }
+                captions.state.value.let { s -> "${s.phase} ${s.mode} refusal=${s.refusal}\n" + s.lines.joinToString("\n") { "${if (it.done) "" else "… "}${it.text}${it.source?.let { src -> " ($src)" }.orEmpty()}" } }
             }
             "PHONE" -> answerLater {
                 when (intent.getStringExtra("do")) {

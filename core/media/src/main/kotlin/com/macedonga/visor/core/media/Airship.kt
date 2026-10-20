@@ -171,10 +171,11 @@ class AirshipReceiver(private val spool: File) : Responder {
         baseName: String,
         file: java.io.File,
         chunk: Int = 1024,
+        uuid: ByteArray? = null,
         onProgress: (Long) -> Unit = {},
     ): String? =
         java.io.RandomAccessFile(file, "r").use { raf ->
-            send(connection, namespace, baseName, file.length(), chunk, onProgress) { at, n -> ByteArray(n).also { raf.seek(at); raf.readFully(it) } }
+            send(connection, namespace, baseName, file.length(), chunk, onProgress, uuid) { at, n -> ByteArray(n).also { raf.seek(at); raf.readFully(it) } }
         }
 
     private suspend fun send(
