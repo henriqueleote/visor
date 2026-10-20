@@ -22,8 +22,18 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
-/** One thing worth saying over the picture for a moment. [uri] is something saved that can be opened. */
-data class Notice(@StringRes val text: Int, val arg: String? = null, val uri: Uri? = null, val warning: Boolean = false, val at: Long = System.currentTimeMillis())
+/**
+ * One thing worth saying over the picture for a moment. [uri] is something saved that can be opened; [glassesHost]
+ * offers to move the stream onto the glasses' own network.
+ */
+data class Notice(
+    @StringRes val text: Int,
+    val arg: String? = null,
+    val uri: Uri? = null,
+    val warning: Boolean = false,
+    val glassesHost: Boolean = false,
+    val at: Long = System.currentTimeMillis(),
+)
 
 @HiltViewModel
 class LiveViewModel @Inject constructor(
@@ -48,8 +58,15 @@ class LiveViewModel @Inject constructor(
     /** Whether the Live has a reason to go on with nobody watching: something is being made of it. */
     fun keepsGoing(): Boolean = outputs.recording.value != null || outputs.broadcast.running
 
-    fun say(@StringRes text: Int, arg: String? = null, uri: Uri? = null, warning: Boolean = false) {
-        _notice.value = Notice(text, arg, uri, warning)
+    fun say(@StringRes text: Int, arg: String? = null, uri: Uri? = null, warning: Boolean = false, glassesHost: Boolean = false) {
+        _notice.value = Notice(text, arg, uri, warning, glassesHost)
+    }
+
+    /** From now on the glasses host the Wi-Fi, and the stream running now moves there. */
+    fun useGlassesHost() {
+        settings.update { it.copy(glassesHost = true) }
+        live.useGlassesHost()
+        _notice.value = null
     }
 
     fun dismiss(notice: Notice) {
@@ -112,14 +129,18 @@ class LiveViewModel @Inject constructor(
 
     fun setOverlay(overlay: LiveOverlay, on: Boolean) = settings.update { it.copy(overlays = if (on) it.overlays + overlay else it.overlays - overlay) }
 
-    /** Notices go after a few seconds, warnings after longer. */
+    /** Notices go after a few seconds, warnings after longer, and one that offers a switch after longer still. */
     init {
         viewModelScope.launch {
             notice.collectLatest { n ->
                 if (n == null) return@collectLatest
-                delay(if (n.warning) 6_000 else 3_500)
+                delay(if (n.glassesHost) 12_000 else if (n.warning) 6_000 else 3_500)
                 dismiss(n)
             }
+        }
+        // A stream on the phone's group that keeps stopping: the glasses' own network may hold.
+        viewModelScope.launch {
+            live.suggestGlassesHost.collect { if (it) say(R.string.live_drops, warning = true, glassesHost = true) }
         }
     }
 }

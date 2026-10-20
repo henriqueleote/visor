@@ -115,7 +115,7 @@ data class StreamStats(
 enum class LivePhase { IDLE, WIFI, GLASSES, CAMERA, RUNNING, RESTARTING, FAILED }
 
 /** Why it did not start, or stopped by itself. */
-enum class LiveProblem { NOT_CONNECTED, IN_CASE, WIFI_OFF, WIFI_DIRECT_DENIED, NO_KEY, JOIN_FAILED, SESSION_FAILED, NO_VIDEO, GAVE_UP }
+enum class LiveProblem { NOT_CONNECTED, IN_CASE, WIFI_OFF, WIFI_DIRECT_DENIED, NO_KEY, JOIN_FAILED, SESSION_FAILED, NO_VIDEO, GAVE_UP, VPN }
 
 data class LiveStatus(val phase: LivePhase = LivePhase.IDLE, val problem: LiveProblem? = null)
 
@@ -370,6 +370,10 @@ class LiveStream(
     private var hosted: Pair<CompletableDeferred<SoftApInfo>, Pair<String, String>>? = null
     private var onGlassesNetwork = false
     private var glassesNetwork: GlassesNetwork? = null
+    // Restarts of this stream on the phone's group: two make the glasses' own network worth a try.
+    private var groupStalls = 0
+    private val _suggestGlassesHost = MutableStateFlow(false)
+    val suggestGlassesHost: StateFlow<Boolean> = _suggestGlassesHost.asStateFlow()
     private var nonce = 1
     private var job: Job? = null
     private var lastConfig: VideoConfig? = null
@@ -501,6 +505,8 @@ class LiveStream(
         if (job?.isActive == true) return
         val p = Params(app, session, quality, bitrate, frameRate, bypassDonCheck, overWifi, groupBand, auto, liveAi, glassesHost)
         params = p
+        groupStalls = 0
+        _suggestGlassesHost.value = false
         _auto.value = auto
         pilot.reset(System.currentTimeMillis())
         _rung.value = Rung(quality, bitrate, frameRate)
@@ -631,6 +637,7 @@ class LiveStream(
                 fail(LiveProblem.GAVE_UP)
                 return
             }
+            if (params?.let { it.overWifi && !it.glassesHost } == true && ++groupStalls >= 2) _suggestGlassesHost.value = true
             say("Restarting the stream (attempt $attempts)")
             _status.value = LiveStatus(LivePhase.RESTARTING)
             recovering = true
@@ -785,6 +792,12 @@ class LiveStream(
             say("The glasses host ${info.ssid} at ${info.address}:${info.port}; joining it")
             val net = GlassesNetwork(context).also { glassesNetwork = it }
             val network = net.join(info.ssid, info.password)
+            // A VPN that apps may not bypass refuses every socket on another network.
+            runCatching { network.socketFactory.createSocket().close() }.exceptionOrNull()?.let { refused ->
+                say("A VPN on this phone keeps Visor off the glasses' network (${refused.message})")
+                fail(LiveProblem.VPN)
+                return false
+            }
             say("The phone is on the glasses' network")
             if (_status.value.phase != LivePhase.RESTARTING) _status.value = LiveStatus(LivePhase.GLASSES)
             openWifiSession(target, bundle, checkNotNull(info.address), info.port, network.socketFactory)
@@ -794,6 +807,19 @@ class LiveStream(
             false
         } finally {
             hosted = null
+        }
+    }
+
+    /** The stream that runs on the phone's group goes on over the glasses' own network instead. */
+    fun useGlassesHost() {
+        val p = params ?: return
+        if (!p.overWifi || p.glassesHost) return
+        params = p.copy(glassesHost = true)
+        _suggestGlassesHost.value = false
+        say("Switching to the glasses' own network")
+        if (wanted) scope.launch {
+            _status.value = LiveStatus(LivePhase.RESTARTING)
+            restart()
         }
     }
 

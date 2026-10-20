@@ -369,6 +369,7 @@ private fun problemWords(problem: LiveProblem?): Int = when (problem) {
     LiveProblem.SESSION_FAILED -> R.string.live_problem_session
     LiveProblem.NO_VIDEO -> R.string.live_problem_no_video
     LiveProblem.GAVE_UP -> R.string.live_problem_gave_up
+    LiveProblem.VPN -> R.string.live_problem_vpn
 }
 
 // ---- Over the picture ----
@@ -643,7 +644,11 @@ internal fun BoxScope.NoticeIsland(model: LiveViewModel, onOpen: (Uri) -> Unit) 
                 Spacer(Modifier.width(10.dp))
                 Pill(stringResource(R.string.live_open), { onOpen(uri) }, small = true)
             }
-            if (n.uri == null) Spacer(Modifier.width(8.dp))
+            if (n.glassesHost) {
+                Spacer(Modifier.width(10.dp))
+                Pill(stringResource(R.string.live_use_glasses_host), { model.useGlassesHost() }, small = true)
+            }
+            if (n.uri == null && !n.glassesHost) Spacer(Modifier.width(8.dp))
         }
     }
 }

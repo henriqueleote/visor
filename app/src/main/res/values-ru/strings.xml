@@ -19,6 +19,12 @@
     <string name="home_reading_case">Футляр</string>
     <string name="home_allow_bluetooth">Разрешить Bluetooth</string>
     <string name="home_set_up">Настроить очки</string>
+    <string name="home_key_refused">Ключ отклонён. Настроить заново</string>
+    <string name="home_key_refused_meta_ai">Ключ отклонён. Возможно, это Meta AI</string>
+    <string name="key_refused_meta_ai_title">Возможно, приложение Meta AI снова забрало очки</string>
+    <string name="key_refused_meta_ai_text">Очки принимают только одно приложение-владельца за раз. Приложение Meta AI на этом телефоне, возможно, снова стало их владельцем, поэтому очки больше не принимают ключ Visor. Если так, сначала удалите его, иначе оно опять заберёт очки, а потом настройте их заново.</string>
+    <string name="key_refused_uninstall_meta_ai">Удалить Meta AI</string>
+    <string name="key_refused_set_up_again">Настроить заново</string>
     <plurals name="home_new_captures">
         <item quantity="one">%d новое фото или видео</item>
         <item quantity="few">%d новых фото или видео</item>
@@ -907,4 +913,7 @@
     <string name="phone_directions">Маршрут до %1$s</string>
     <string name="phone_play">Воспроизвести %1$s</string>
     <string name="live_settings_glasses_host">Wi-Fi создают очки</string>
+    <string name="live_problem_vpn">VPN не пускает Visor в сеть очков. Исключите Visor из VPN.</string>
+    <string name="live_drops">Трансляция часто обрывается</string>
+    <string name="live_use_glasses_host">Wi-Fi очков</string>
 </resources>
