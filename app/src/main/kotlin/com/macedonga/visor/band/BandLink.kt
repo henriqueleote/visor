@@ -32,6 +32,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
@@ -54,8 +56,9 @@ data class BandState(
 )
 
 /**
- * The phone's own link to the Neural Band: up while Visor runs for the band's Display, down while the Display holds a
- * lease on it (svc150), unless a lesson wants the band. It reads the battery and the wrist over svc52822 and sets the
+ * The phone's own link to the Neural Band: the band takes one host at a time, so the phone leaves it to the Display
+ * while the Display is connected or holds a lease on it (svc150), and takes it only for a lesson or one errand (the
+ * wrist, a buzz); the Display reports the band's battery itself. It reads the battery and the wrist over svc52822 and sets the
  * wrist; in a lesson it turns the gesture streams on and acks each gesture, as the Meta app does.
  */
 @Singleton
@@ -72,6 +75,7 @@ class BandLink @Inject constructor(
     private val leased = MutableStateFlow(false)
     private val held = MutableStateFlow(true)
     private val lesson = MutableStateFlow(false)
+    private val borrowing = MutableStateFlow(false)
     private val _gestures = kotlinx.coroutines.flow.MutableSharedFlow<Band.Gesture>(extraBufferCapacity = 32)
     val gestures: kotlinx.coroutines.flow.SharedFlow<Band.Gesture> = _gestures
 
@@ -87,8 +91,9 @@ class BandLink @Inject constructor(
             connection.state.collect { if (it.link != LinkState.READY && leased.value) leased.value = false }
         }
         scope.launch {
-            // A lesson takes the band from the Display; when it ends, the lease decides again.
-            val stepBack = combine(leased, lesson) { lease, learning -> lease && !learning }
+            // A lesson or an errand takes the band from the Display; when it ends, the band goes back.
+            val displayUp = connection.state.map { it.link == LinkState.READY }.distinctUntilChanged()
+            val stepBack = combine(leased, displayUp, lesson, borrowing) { lease, up, learning, errand -> (lease || up) && !learning && !errand }
             combine(connection.running, connection.pair, bands.all, stepBack, held) { running, pair, _, away, hold ->
                 bands.forGlasses(pair)?.takeIf { running && hold && !away }
             }.distinctUntilChanged().collect { band -> gate.withLock { switchTo(band) } }
@@ -126,14 +131,27 @@ class BandLink @Inject constructor(
         log.add("Band: the lesson gives the band back")
     }
 
-    /** A short buzz on the band; false when it is not connected. */
-    fun buzz(): Boolean = send { seq ->
-        listOf(Band.vibrate(seq.getAndIncrement(), BUZZ_DURATION, BUZZ_HZ, BUZZ_AMPLITUDE))
+    /** A short buzz on the band, taken from the Display for it. */
+    fun buzz() = borrow { seq -> listOf(Band.vibrate(seq.getAndIncrement(), BUZZ_DURATION, BUZZ_HZ, BUZZ_AMPLITUDE)) }
+
+    /** Take the band for one errand, then give it back; at once when the phone already has it. */
+    private fun borrow(requests: (AtomicInteger) -> List<ByteArray>) {
+        if (send(requests)) return
+        scope.launch {
+            borrowing.value = true
+            val up = kotlinx.coroutines.withTimeoutOrNull(BORROW_MS) { _state.first { it.link == LinkState.READY } } != null
+            if (up) {
+                send(requests)
+                delay(ERRAND_MS)
+            } else log.add("Band: not reached for an errand in ${BORROW_MS / 1000} s")
+            borrowing.value = false
+        }
     }
 
     /** Put the band on [left] or the right wrist; read back at once. */
-    fun setLeftHanded(left: Boolean): Boolean = send { seq ->
-        listOf(Band.configRequest(seq.getAndIncrement(), left), Band.configRequest(seq.getAndIncrement()))
+    fun setLeftHanded(left: Boolean) {
+        _state.update { it.copy(leftHanded = left) }
+        borrow { seq -> listOf(Band.configRequest(seq.getAndIncrement(), left), Band.configRequest(seq.getAndIncrement())) }
     }
 
     private fun streams(on: Boolean) {
@@ -254,6 +272,8 @@ class BandLink @Inject constructor(
     private companion object {
         const val POLL_MS = 5 * 60_000L
         const val INFO_WAIT_MS = 1_500L
+        const val BORROW_MS = 20_000L
+        const val ERRAND_MS = 1_500L
         // Nothing in the Meta app sends a buzz, so these are a guess at milliseconds, hertz and a 0-255 strength.
         const val BUZZ_DURATION = 200L
         const val BUZZ_HZ = 170f

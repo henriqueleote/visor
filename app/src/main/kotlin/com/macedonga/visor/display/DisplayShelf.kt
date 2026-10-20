@@ -42,6 +42,7 @@ class ShelfModel @Inject constructor(
     val script: PrompterScript,
     val prompter: Teleprompter,
     val band: com.macedonga.visor.band.BandLink,
+    val connection: com.macedonga.visor.core.connection.GlassesConnection,
 ) : ViewModel()
 
 /** The Display's tools on the home: a card each, with what it holds now. */
@@ -50,6 +51,8 @@ fun DisplayShelf(onOpen: (DisplayTool) -> Unit, modifier: Modifier = Modifier, m
     val text by model.script.text.collectAsStateWithLifecycle()
     val prompter by model.prompter.state.collectAsStateWithLifecycle()
     val band by model.band.state.collectAsStateWithLifecycle()
+    val glasses by model.connection.state.collectAsStateWithLifecycle()
+    val bandBattery = glasses.device?.bandBattery ?: band.battery
     LazyRow(modifier, contentPadding = PaddingValues(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
         item(key = "prompter") {
             val words = text.split(Regex("\\s+")).count { it.isNotEmpty() }
@@ -68,7 +71,7 @@ fun DisplayShelf(onOpen: (DisplayTool) -> Unit, modifier: Modifier = Modifier, m
             ToolCard(
                 VisorIcons.Band,
                 stringResource(R.string.gestures_title),
-                band.battery?.let { stringResource(R.string.gestures_card_battery, it) } ?: stringResource(R.string.gestures_card),
+                bandBattery?.let { stringResource(R.string.gestures_card_battery, it) } ?: stringResource(R.string.gestures_card),
                 onClick = { onOpen(DisplayTool.GESTURES) },
             )
         }

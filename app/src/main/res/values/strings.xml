@@ -971,4 +971,8 @@
     <string name="lesson_apps">Apps</string>
     <string name="lesson_apps_how">Hold your thumb and middle finger together</string>
     <string name="band_buzz">Vibrate</string>
+    <string name="band_fit">Fit</string>
+    <string name="band_fit_loose">Loose</string>
+    <string name="band_fit_tight">Snug</string>
+    <string name="band_wrong_way">Worn the wrong way round</string>
 </resources>

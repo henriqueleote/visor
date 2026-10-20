@@ -586,7 +586,8 @@ fun HomeScreen(
                     StatusPill(
                         state, mood, lastBattery, paired, allowed, transferring, importProgress, waiting = if (importing) 0 else fresh.size, onImport = onImport,
                         onAllow = { ask.launch(wanted()) }, onSetUp = onSetUp, modifier = Modifier,
-                        band = ours?.battery, bandCharging = ours?.charging == true, refused = refused,
+                        band = state.device?.bandBattery ?: ours?.battery,
+                        bandCharging = state.device?.bandCharging ?: (ours?.charging == true), refused = refused,
                     )
                 }
                 if (pairs.isNotEmpty()) PairDots(pairs.size + 1, shownIndex, Modifier.padding(top = 12.dp))

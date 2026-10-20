@@ -14,6 +14,11 @@ internal fun BandPart(model: SettingsViewModel) {
     val pair by model.connection.pair.collectAsStateWithLifecycle()
     val all by model.bands.all.collectAsStateWithLifecycle()
     val band by model.band.state.collectAsStateWithLifecycle()
+    val glasses by model.connection.state.collectAsStateWithLifecycle()
+    // The Display reports its band; the phone's own reading is for when the Display is away.
+    val device = glasses.device
+    val battery = device?.bandBattery ?: band.battery
+    val charging = device?.bandCharging ?: band.charging
     val setup by model.bandSetup.status.collectAsStateWithLifecycle()
     val running = setup is BandSetup.Status.Running
     val problem = (setup as? BandSetup.Status.Failed)?.let { failWords(it) }
@@ -30,23 +35,24 @@ internal fun BandPart(model: SettingsViewModel) {
         return
     }
     Rows(
-        { ValueRow(stringResource(R.string.band_battery), band.battery?.let { batteryWords(it, band.charging) }, onClick = null) },
+        { ValueRow(stringResource(R.string.band_battery), battery?.let { batteryWords(it, charging) }, onClick = null) },
+        fitWords(device?.bandFit)?.let { fit ->
+            row {
+                ValueRow(
+                    stringResource(R.string.band_fit), fit, onClick = null,
+                    problem = if (device?.bandOrientation == "INCORRECT") stringResource(R.string.band_wrong_way) else null,
+                )
+            }
+        },
         {
             PillsRow(
                 stringResource(R.string.band_wrist),
                 listOf(true to stringResource(R.string.band_left), false to stringResource(R.string.band_right)),
                 band.leftHanded,
                 onPick = { model.band.setLeftHanded(it) },
-                locked = band.link != LinkState.READY,
             )
         },
-        {
-            ValueRow(
-                stringResource(R.string.band_buzz), null,
-                onClick = { model.band.buzz() },
-                locked = band.link != LinkState.READY,
-            )
-        },
+        { ValueRow(stringResource(R.string.band_buzz), null, onClick = { model.band.buzz() }) },
         { SetUpRow(R.string.band_set_up_again) },
     )
 }
@@ -54,6 +60,13 @@ internal fun BandPart(model: SettingsViewModel) {
 @Composable
 internal fun batteryWords(percent: Int, charging: Boolean?): String =
     stringResource(if (charging == true) R.string.glasses_battery_charging else R.string.band_percent, percent)
+
+@Composable
+private fun fitWords(fit: String?): String? = when (fit) {
+    "LOOSE" -> stringResource(R.string.band_fit_loose)
+    "TIGHT" -> stringResource(R.string.band_fit_tight)
+    else -> null
+}
 
 @Composable
 internal fun wristWords(left: Boolean): String = stringResource(if (left) R.string.band_left else R.string.band_right)

@@ -969,4 +969,8 @@
     <string name="lesson_apps">App</string>
     <string name="lesson_apps_how">Tieni uniti pollice e medio</string>
     <string name="band_buzz">Fai vibrare</string>
+    <string name="band_fit">Vestibilità</string>
+    <string name="band_fit_loose">Larga</string>
+    <string name="band_fit_tight">Aderente</string>
+    <string name="band_wrong_way">Indossato al contrario</string>
 </resources>
