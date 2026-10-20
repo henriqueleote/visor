@@ -32,6 +32,7 @@ import com.macedonga.visor.core.identity.KeystoreSealer
 import com.macedonga.visor.core.media.AirshipReceiver
 import com.macedonga.visor.core.media.GlassesConfig
 import com.macedonga.visor.core.media.MediaImport
+import com.macedonga.visor.core.media.Screencast
 import com.macedonga.visor.core.media.LiveStream
 import com.macedonga.visor.core.media.LiveOutputs
 import com.macedonga.visor.core.media.LiveSettingsStore
@@ -266,6 +267,10 @@ object ConnectionModule {
         airship: AirshipReceiver,
         media: MediaImport,
     ): GlassesConfig = GlassesConfig(context, connection, airship, media)
+
+    @Provides
+    @Singleton
+    fun screencast(connection: GlassesConnection, config: GlassesConfig): Screencast = Screencast(connection, config)
 
     @Provides
     @Singleton

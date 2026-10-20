@@ -37,6 +37,7 @@ import com.macedonga.visor.log.EventLogScreen
 import com.macedonga.visor.login.NativeLoginPage
 import com.macedonga.visor.media.LiveScreen
 import com.macedonga.visor.media.LiveSettingsScreen
+import com.macedonga.visor.media.MirrorScreen
 import com.macedonga.visor.metaai.LiveSessionScreen
 import com.macedonga.visor.metaai.MemoriesScreen
 import com.macedonga.visor.metaai.MetaAiScreen
@@ -89,6 +90,9 @@ data object MetaAiKey : NavKey
 
 @Serializable
 data object LiveKey : NavKey
+
+@Serializable
+data object MirrorKey : NavKey
 
 @Serializable
 data object FlagsKey : NavKey
@@ -214,6 +218,7 @@ fun VisorNav(opens: kotlinx.coroutines.flow.Flow<String>, markAtLaunch: Boolean)
                             when (tool) {
                                 com.macedonga.visor.display.DisplayTool.TELEPROMPTER -> backStack.add(PrompterKey)
                                 com.macedonga.visor.display.DisplayTool.GESTURES -> backStack.add(GesturesKey)
+                                com.macedonga.visor.display.DisplayTool.MIRROR -> backStack.add(MirrorKey)
                             }
                         },
                     )
@@ -297,6 +302,7 @@ fun VisorNav(opens: kotlinx.coroutines.flow.Flow<String>, markAtLaunch: Boolean)
                     )
                 }
                 entry<LiveSettingsKey> { LiveSettingsScreen() }
+                entry<MirrorKey> { MirrorScreen() }
                 entry<LanguageKey> { com.macedonga.visor.language.LanguageScreen() }
                 entry<FlagsKey> { FlagsScreen() }
                 entry<ConversationFocusKey> { ConversationFocusScreen() }
