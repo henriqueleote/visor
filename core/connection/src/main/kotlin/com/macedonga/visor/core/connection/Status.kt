@@ -152,7 +152,7 @@ data class Led(
     val privacyLedActive: Boolean,
 )
 
-data class Tampering(val tampered: Boolean, val lux: Long, val indoor: Boolean)
+data class Tampering(val tampered: Boolean, val lux: Float, val indoor: Boolean)
 
 data class Thermal(
     val health: String,
@@ -381,7 +381,7 @@ fun decodeDeviceStateFull(payload: ByteArray): DeviceState {
     if (top.has(12)) {
         val t = Wire.parse(top.bytes(12))
         state = state.copy(tampering = Tampering(
-            tampered = bool(t.varint(1)), lux = t.varint(2), indoor = bool(t.varint(3)),
+            tampered = bool(t.varint(1)), lux = t.float(2), indoor = bool(t.varint(3)),
         ))
     }
     if (top.has(13)) {

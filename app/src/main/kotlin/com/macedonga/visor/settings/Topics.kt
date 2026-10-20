@@ -107,7 +107,7 @@ val DISPLAY_GROUPS = setOf("Display", "Neural band gestures")
 fun hasDisplay(build: String?): Boolean = productId(build) in DISPLAY_PRODUCTS
 
 // Meta Ray-Ban Display.
-private val DISPLAY_PRODUCTS = setOf(259)
+private val DISPLAY_PRODUCTS = setOf(259, 270, 271)
 
 /** Whether [product] has anything on this topic: the band is the Display's, and hearing is nothing but features. */
 fun Topic.shownOn(product: Int?): Boolean = when (this) {

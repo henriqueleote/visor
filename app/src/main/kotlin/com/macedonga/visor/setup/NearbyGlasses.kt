@@ -68,7 +68,7 @@ class NearbyGlasses @Inject constructor(@ApplicationContext private val context:
                 val data = record.getManufacturerSpecificData(META_COMPANY)
                 if (data == null && record.serviceUuids?.any { it.uuid == META_LE_SERVICE } != true) return
                 val advert = data?.let(::advert)
-                if (advert?.product == PRODUCT_BAND) return
+                if (advert?.product in PRODUCT_BANDS) return
                 val device = result.device
                 val name = record.deviceName ?: runCatching { device.name }.getOrNull() ?: productName(advert?.product)
                 if (BAND_NAME.containsMatchIn(name)) return
@@ -146,13 +146,13 @@ class NearbyGlasses @Inject constructor(@ApplicationContext private val context:
 
     private fun productName(product: Int?) = when (product) {
         257 -> "Ray-Ban Stories"
-        259 -> "Meta Ray-Ban Display"
+        259, 270, 271 -> "Meta Ray-Ban Display"
         else -> "Ray-Ban Meta"
     }
 
     private companion object {
         const val META_COMPANY = 0x01AB
-        const val PRODUCT_BAND = 1537
+        val PRODUCT_BANDS = setOf(1537, 1538)
         const val FORGET_MS = 12_000L
         const val SWEEP_MS = 2_000L
         const val BOND_MS = 90_000L
