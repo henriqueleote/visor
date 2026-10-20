@@ -5,7 +5,8 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
 
 /** Where the provisioning token comes from. */
-class TokenError(message: String) : Exception(message)
+/** [unreachable]: Meta was not reached at all, so the login itself may well be fine. */
+class TokenError(message: String, val unreachable: Boolean = false) : Exception(message)
 
 class Token(
     val value: String,

@@ -63,7 +63,7 @@ fun exchangeCode(code: String, http: HttpPost = UrlConnectionPost): String {
             body.toByteArray(Charsets.US_ASCII),
         )
     } catch (error: Exception) {
-        throw TokenError("token-exchange: ${error.javaClass.simpleName}: ${error.message}")
+        throw TokenError("token-exchange: ${error.javaClass.simpleName}: ${error.message}", unreachable = true)
     }
 
     val payload = try {
@@ -103,8 +103,8 @@ class WebLoginSource(
         try {
             return exchangeFrla(cached, http = http)
         } catch (error: TokenError) {
-            // An FRLA that no longer works is the one case where the browser has to open
-            // again. Say why, so this does not look like a network fault.
+            // No network is not a dead login: say so, and keep "log in again" for an FRLA Meta turned down.
+            if (error.unreachable) throw TokenError("Meta could not be reached (${error.message})", unreachable = true)
             throw TokenError("the saved Meta login no longer works (${error.message}); log in again")
         }
     }
