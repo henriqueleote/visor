@@ -21,6 +21,11 @@
     <string name="home_allow_bluetooth">Allow Bluetooth</string>
     <string name="home_set_up">Set up glasses</string>
     <string name="home_key_refused">Key refused. Set them up again</string>
+    <string name="home_key_refused_meta_ai">Key refused. Meta AI may have taken them</string>
+    <string name="key_refused_meta_ai_title">Meta AI may have taken the glasses back</string>
+    <string name="key_refused_meta_ai_text">Glasses take one owner app at a time. The Meta AI app on this phone may have made itself their owner again, so they no longer accept Visor\'s key. If so, uninstall it first, or it takes them again, then set the glasses up again.</string>
+    <string name="key_refused_uninstall_meta_ai">Uninstall Meta AI</string>
+    <string name="key_refused_set_up_again">Set up again</string>
     <plurals name="home_new_captures">
         <item quantity="one">%d new photo or video</item>
         <item quantity="other">%d new photos and videos</item>

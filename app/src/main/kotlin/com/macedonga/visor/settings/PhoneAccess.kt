@@ -142,8 +142,8 @@ fun PhoneAccessScreen(model: PhoneAccessModel = hiltViewModel()) {
     }
 }
 
-internal fun openAppPage(context: Context) {
-    context.startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", context.packageName, null)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+internal fun openAppPage(context: Context, packageName: String = context.packageName) {
+    context.startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", packageName, null)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
 }
 
 internal fun openListenerPage(context: Context) {

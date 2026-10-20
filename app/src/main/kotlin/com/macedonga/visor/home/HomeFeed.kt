@@ -1,5 +1,7 @@
 package com.macedonga.visor.home
 
+import android.content.Context
+import android.content.pm.PackageManager
 import android.graphics.ImageDecoder
 import android.text.format.DateUtils
 import androidx.compose.animation.core.Animatable
@@ -38,6 +40,7 @@ import kotlinx.coroutines.flow.first
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.blur
@@ -62,6 +65,7 @@ import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import com.macedonga.visor.R
 import com.macedonga.visor.core.identity.language.GlassesLook
 import com.macedonga.visor.core.connection.CaseBattery
@@ -71,6 +75,11 @@ import com.macedonga.visor.core.identity.Diagnosis
 import com.macedonga.visor.core.media.Capture
 import com.macedonga.visor.core.media.Transfer
 import com.macedonga.visor.core.session.LinkState
+import com.macedonga.visor.settings.ActionPill
+import com.macedonga.visor.settings.SIDE
+import com.macedonga.visor.settings.SheetTitle
+import com.macedonga.visor.settings.VisorSheet
+import com.macedonga.visor.settings.openAppPage
 import com.macedonga.visor.stage.LocalStage
 import com.macedonga.visor.stage.Mood
 import com.macedonga.visor.ui.VisorIcons
@@ -150,7 +159,7 @@ fun StatusPill(
         paired == false -> return Pill(stringResource(R.string.home_set_up), onSetUp, modifier)
         // Nearby and refusing the key would otherwise look asleep, with nothing to do about it.
         state.diagnosis == Diagnosis.EVICTED && state.link != LinkState.READY ->
-            return Pill(stringResource(R.string.home_key_refused), onChangeOwner, modifier)
+            return RefusedPill(onChangeOwner, modifier)
     }
     val colors = Visor.colors
     val away = mood == Mood.FAR || mood == Mood.ABSENT || mood == Mood.SEARCHING || mood == Mood.ASLEEP || mood == Mood.IN_CASE
@@ -636,6 +645,47 @@ fun Pill(text: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
             .padding(horizontal = 22.dp, vertical = 11.dp),
     ) {
         Text(text, style = Visor.type.body, color = Visor.colors.canvas, textAlign = TextAlign.Center)
+    }
+}
+
+/** The Meta AI app, the other app the glasses take as their owner. */
+private const val META_AI_PACKAGE = "com.facebook.stella"
+
+private fun metaAiInstalled(context: Context): Boolean = try {
+    context.packageManager.getPackageInfo(META_AI_PACKAGE, 0)
+    true
+} catch (_: PackageManager.NameNotFoundException) {
+    false
+}
+
+/**
+ * A refused key. With the Meta AI app on the phone that is the likely why: it took the glasses back, and it would take
+ * them again after setup unless it goes first. So the pill names it, and its sheet offers both steps in order.
+ */
+@Composable
+private fun RefusedPill(onChangeOwner: () -> Unit, modifier: Modifier) {
+    val context = LocalContext.current
+    var metaAi by remember { mutableStateOf(metaAiInstalled(context)) }
+    // Checked again on the way back, since uninstalling it happens in the system's own page.
+    LifecycleResumeEffect(Unit) {
+        metaAi = metaAiInstalled(context)
+        onPauseOrDispose { }
+    }
+    // Closed again whenever Meta AI comes or goes, so a reinstall never opens it by itself.
+    var explaining by remember(metaAi) { mutableStateOf(false) }
+    if (!metaAi) return Pill(stringResource(R.string.home_key_refused), onChangeOwner, modifier)
+    Pill(stringResource(R.string.home_key_refused_meta_ai), { explaining = true }, modifier)
+    if (explaining) {
+        VisorSheet({ explaining = false }) {
+            SheetTitle(stringResource(R.string.key_refused_meta_ai_title), stringResource(R.string.key_refused_meta_ai_text))
+            Row(Modifier.padding(horizontal = SIDE), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                ActionPill(stringResource(R.string.key_refused_uninstall_meta_ai), { openAppPage(context, META_AI_PACKAGE) })
+                ActionPill(stringResource(R.string.key_refused_set_up_again), {
+                    explaining = false
+                    onChangeOwner()
+                }, quiet = true)
+            }
+        }
     }
 }
 
