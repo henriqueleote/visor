@@ -141,6 +141,8 @@ object ConnectionModule {
         assistant: javax.inject.Provider<Assistant>,
         lease: javax.inject.Provider<com.macedonga.visor.band.DeviceLease>,
         icons: NotifyIcons,
+        internet: com.macedonga.visor.connection.InternetSwitch,
+        fetcher: com.macedonga.visor.connection.DataFetcher,
     ): SessionHostFactory = RealSessionHostFactory(
         transports,
         responders = mapOf(
@@ -151,6 +153,8 @@ object ConnectionModule {
             SVC_GLASSES_PHOTO to photos,
             SVC_TAR to timers,
             GlassesNotification.SVC to icons,
+            com.macedonga.visor.connection.InternetSwitch.SVC to internet,
+            com.macedonga.visor.connection.DataFetcher.SVC to fetcher,
             SVC_HEARING to Responder { message, mux -> hearing.get().respond(message, mux) },
             ServiceId.CONN_DEVICE_LEASE.value to Responder { message, mux -> lease.get().respond(message, mux) },
         ),

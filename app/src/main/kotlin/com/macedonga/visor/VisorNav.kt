@@ -161,6 +161,9 @@ data object GesturesKey : NavKey
 data object CaptionsKey : NavKey
 
 @Serializable
+data object RequestLogKey : NavKey
+
+@Serializable
 data object WifiNetworksKey : NavKey
 
 /** The app's graph: the home, and every screen it opens. */
@@ -259,7 +262,8 @@ fun VisorNav(opens: kotlinx.coroutines.flow.Flow<String>, markAtLaunch: Boolean)
                 entry<MetaLoginPageKey> {
                     NativeLoginPage(onDone = { backStack.removeLastOrNull() })
                 }
-                entry<EventLogKey> { EventLogScreen() }
+                entry<EventLogKey> { EventLogScreen(onRequests = { backStack.add(RequestLogKey) }) }
+                entry<RequestLogKey> { com.macedonga.visor.log.RequestLogScreen() }
                 entry<MediaKey> { GalleryScreen() }
                 // The pair travels between the home and Settings on the one stage, so the screens only cross-fade, both ways.
                 entry<SettingsKey>(

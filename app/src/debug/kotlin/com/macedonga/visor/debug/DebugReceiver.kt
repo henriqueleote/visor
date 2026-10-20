@@ -63,6 +63,7 @@ class DebugReceiver : BroadcastReceiver() {
     @Inject lateinit var languages: com.macedonga.visor.language.LanguageInstaller
     @Inject lateinit var captionPacks: com.macedonga.visor.display.CaptionPacks
     @Inject lateinit var screencast: com.macedonga.visor.core.media.Screencast
+    @Inject lateinit var requests: com.macedonga.visor.connection.RequestLog
 
     override fun onReceive(context: Context, intent: Intent) {
         val action = intent.action?.substringAfterLast('.').orEmpty()
@@ -343,6 +344,10 @@ class DebugReceiver : BroadcastReceiver() {
                 watch.cancel()
                 heard.joinToString("\n").ifEmpty { "nothing" }
             }
+            // The request log's newest entries, links cut at their query.
+            "REQUESTS" -> resultData = requests.items.value.takeLast(intent.getIntExtra("n", 30)).joinToString("\n") {
+                "${it.source} ${it.outcome ?: "running"} ${it.bytes}B ${it.millis}ms [${it.options}] ${it.url.substringBefore('?').take(160)}"
+            }.ifEmpty { "none" }
             // --es key <MobileConfig param> --ez value true|false: one bool written to the glasses.
             "MC_SET" -> answerLater {
                 config.send(mapOf(intent.getStringExtra("key").orEmpty() to intent.getBooleanExtra("value", false))) ?: "sent"
