@@ -952,7 +952,6 @@
     <string name="prompter_refused_battery">The glasses\' battery is too low</string>
     <string name="prompter_refused_heat">The glasses are too warm</string>
     <string name="prompter_refused_power">The glasses are short of power</string>
-    <string name="home_set_up_again">Set up again</string>
     <string name="gestures_title">Gestures</string>
     <string name="gestures_card">Learn the gestures</string>
     <string name="gestures_card_battery">Band %1$d%%</string>

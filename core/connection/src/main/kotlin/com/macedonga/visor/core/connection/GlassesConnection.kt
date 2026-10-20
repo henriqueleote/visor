@@ -267,9 +267,7 @@ class GlassesConnection(
         deadline = null
 
         val trustOk = host.trustComplete
-        // A refusal is an answer too: the Display sends its own credential, turns ours down and never ends link
-        // setup, so svc100 is never asked.
-        val answered = canaryAnswered || host.trustRefused
+        val answered = canaryAnswered
         if (bundle == null) {
             // Bring-up against a peer with no stored identity. There is a verdict to publish
             // and no bundle whose state could move.

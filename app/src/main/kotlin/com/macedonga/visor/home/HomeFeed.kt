@@ -141,13 +141,10 @@ fun StatusPill(
     // The Display's Neural Band, when Visor has read it.
     band: Int? = null,
     bandCharging: Boolean = false,
-    // The glasses answer and refuse this phone's key: another phone has set them up since.
-    refused: Boolean = false,
 ) {
     when {
         !allowed -> return Pill(stringResource(R.string.home_allow_bluetooth), onAllow, modifier)
         paired == false -> return Pill(stringResource(R.string.home_set_up), onSetUp, modifier)
-        refused -> return Pill(stringResource(R.string.home_set_up_again), onSetUp, modifier)
     }
     val colors = Visor.colors
     val away = mood == Mood.FAR || mood == Mood.ABSENT || mood == Mood.SEARCHING || mood == Mood.ASLEEP || mood == Mood.IN_CASE

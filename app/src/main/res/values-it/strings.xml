@@ -950,7 +950,6 @@
     <string name="prompter_refused_battery">La batteria degli occhiali è troppo scarica</string>
     <string name="prompter_refused_heat">Gli occhiali sono troppo caldi</string>
     <string name="prompter_refused_power">Gli occhiali non hanno abbastanza energia</string>
-    <string name="home_set_up_again">Configura di nuovo</string>
     <string name="gestures_title">Gesti</string>
     <string name="gestures_card">Impara i gesti</string>
     <string name="gestures_card_battery">Bracciale %1$d%%</string>
