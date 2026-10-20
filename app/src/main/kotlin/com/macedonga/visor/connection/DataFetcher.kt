@@ -24,6 +24,7 @@ import javax.inject.Provider
 import javax.inject.Singleton
 import kotlin.math.max
 import kotlin.math.roundToInt
+import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -48,7 +49,7 @@ class DataFetcher @Inject constructor(
     private val log: Provider<EventLog>,
     private val requests: RequestLog,
 ) : Responder {
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO + CoroutineExceptionHandler { _, e -> log.get().add("Fetch: failed: $e") })
     private val running = ConcurrentHashMap<Int, Job>()
     private val slots = Semaphore(PARALLEL)
 

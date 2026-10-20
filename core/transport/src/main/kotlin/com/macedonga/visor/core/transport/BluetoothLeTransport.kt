@@ -53,19 +53,48 @@ class BluetoothLeTransport(
         }
         val device = context.getSystemService(BluetoothManager::class.java)?.adapter?.getRemoteDevice(address)
             ?: throw TransportConnectException(ConnectFailure.BLUETOOTH_OFF, "Bluetooth is off")
-        val psm = keeper?.psm ?: withTimeoutOrNull(GATT_MS) { readPsm(device) } ?: defaultPsm
-        keeper?.note("opening L2CAP psm $psm, LE link ${if (keeper.connected.value) "up" else "down"}")
+        // The usual PSM first: reading it over GATT on a fresh link cost up to 6 s; read only when that one fails.
+        val known = keeper?.psm
+        val first = known ?: defaultPsm
+        keeper?.note("opening L2CAP psm $first, LE link ${if (keeper.connected.value) "up" else "down"}")
+        try {
+            open(device, first)
+        } catch (refused: TransportConnectException) {
+            if (known != null || refused.failure == ConnectFailure.PERMISSION_REFUSED) throw refused
+            val read = withTimeoutOrNull(GATT_MS) { readPsm(device) }
+            if (read == null || read == first) throw refused
+            keeper?.note("opening L2CAP psm $read, as the glasses name it")
+            open(device, read)
+        }
+    }
+
+    @android.annotation.SuppressLint("MissingPermission")
+    private suspend fun open(device: android.bluetooth.BluetoothDevice, psm: Int) {
         withContext(io) {
             val opening = try {
                 device.createInsecureL2capChannel(psm)
             } catch (error: SecurityException) {
                 throw TransportConnectException(ConnectFailure.PERMISSION_REFUSED, "Visor may not use Bluetooth yet", error)
             }
+            // A healthy open takes a fraction of a second; after Visor died with a channel open, Android's own wait is
+            // 20 to 30 s for nothing. Closing the socket ends the wait.
+            var timedOut = false
+            val watchdog = java.util.Timer(true).apply {
+                schedule(object : java.util.TimerTask() {
+                    override fun run() {
+                        timedOut = true
+                        runCatching { opening.close() }
+                    }
+                }, L2CAP_OPEN_MS)
+            }
             try {
                 opening.connect()
             } catch (error: IOException) {
                 runCatching { opening.close() }
-                throw TransportConnectException(ConnectFailure.NO_ANSWER, "the glasses did not open L2CAP psm $psm: ${error.message}", error)
+                val why = if (timedOut) "no answer in ${L2CAP_OPEN_MS / 1000} s" else error.message
+                throw TransportConnectException(ConnectFailure.NO_ANSWER, "the glasses did not open L2CAP psm $psm: $why", error)
+            } finally {
+                watchdog.cancel()
             }
             socket = opening
             stream = SduStream(opening.inputStream, opening.outputStream, wireLog)
@@ -119,6 +148,7 @@ class BluetoothLeTransport(
 
     private companion object {
         const val GATT_MS = 6_000L
+        const val L2CAP_OPEN_MS = 8_000L
     }
 }
 

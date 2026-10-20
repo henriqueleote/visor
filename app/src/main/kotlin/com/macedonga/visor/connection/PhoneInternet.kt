@@ -19,6 +19,7 @@ import javax.inject.Inject
 import javax.inject.Provider
 import javax.inject.Singleton
 import kotlin.random.Random
+import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -45,7 +46,8 @@ class PhoneInternet @Inject constructor(
     private val requests: RequestLog,
     private val log: Provider<EventLog>,
 ) : Responder {
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    // A connection that fails ends alone; nothing in here may take the app down.
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO + CoroutineExceptionHandler { _, e -> log.get().add("Internet: a connection failed: $e") })
     private val sessions = ConcurrentHashMap<Int, Session>()
 
     override suspend fun respond(message: DataXMessage, connection: DataXConnection) {
@@ -91,7 +93,9 @@ class PhoneInternet @Inject constructor(
                 IpPacket.UDP -> {
                     val d = UdpDatagram.parse(packet.transport) ?: return
                     val key = key(packet, d.srcPort, d.dstPort)
-                    udp.getOrPut(key) { UdpFlow(this, packet, d.srcPort, d.dstPort, key) }.send(d.data)
+                    // A flow the phone cannot reach (IPv6 on a phone without it) is dropped; the Display falls back.
+                    val flow = udp[key] ?: runCatching { UdpFlow(this, packet, d.srcPort, d.dstPort, key) }.getOrNull()?.also { udp[key] = it } ?: return
+                    flow.send(d.data)
                 }
             }
         }
@@ -152,6 +156,7 @@ class PhoneInternet @Inject constructor(
         private var peerFin = false
         private var finSent = false
         private var named = false
+        @Volatile private var finished = false
         private var bytes = 0L
         private val job: Job = scope.launch { run() }
 
@@ -166,7 +171,9 @@ class PhoneInternet @Inject constructor(
             output = connected.getOutputStream()
             lock.withLock { synAck() }
             while (true) {
-                val seg = withTimeoutOrNull(IDLE_MS) { inbox.receive() } ?: return finish("idle")
+                val next = withTimeoutOrNull(IDLE_MS) { inbox.receiveCatching() } ?: return finish("idle")
+                // Closed: the tunnel or the link went, and close() has already let go of everything.
+                val seg = next.getOrNull() ?: return
                 if (seg.rst) return finish("reset by the Display")
                 if (seg.syn) {
                     lock.withLock { synAck() }
@@ -288,15 +295,18 @@ class PhoneInternet @Inject constructor(
         }
 
         private fun finish(outcome: String, failed: Boolean = false) {
-            requests.finish(logId, outcome, failed, bytes)
+            if (!finished) requests.finish(logId, outcome, failed, bytes)
+            finished = true
             close()
         }
 
         fun close() {
+            if (!finished) requests.finish(logId, "the tunnel ended", failed = false, bytes = bytes)
+            finished = true
             s.forget(key)
             runCatching { socket?.close() }
-            inbox.close()
             job.cancel()
+            inbox.close()
         }
     }
 
