@@ -953,4 +953,22 @@
     <string name="prompter_refused_heat">The glasses are too warm</string>
     <string name="prompter_refused_power">The glasses are short of power</string>
     <string name="home_set_up_again">Set up again</string>
+    <string name="gestures_title">Gestures</string>
+    <string name="gestures_card">Learn the gestures</string>
+    <string name="gestures_card_battery">Band %1$d%%</string>
+    <string name="gestures_waiting">Connecting to the band</string>
+    <string name="gestures_no_band">Set up the Neural Band in Settings</string>
+    <string name="lesson_select">Select</string>
+    <string name="lesson_select_how">Tap your thumb and index finger together</string>
+    <string name="lesson_back">Back</string>
+    <string name="lesson_back_how">Tap your thumb and middle finger together</string>
+    <string name="lesson_scroll">Scroll</string>
+    <string name="lesson_scroll_how">Swipe your thumb along the side of your index finger</string>
+    <string name="lesson_assistant">Meta AI</string>
+    <string name="lesson_assistant_how">Double tap your thumb on the side of your index finger</string>
+    <string name="lesson_wake">Wake and sleep</string>
+    <string name="lesson_wake_how">Double tap your thumb and middle finger together</string>
+    <string name="lesson_apps">Apps</string>
+    <string name="lesson_apps_how">Hold your thumb and middle finger together</string>
+    <string name="band_buzz">Vibrate</string>
 </resources>

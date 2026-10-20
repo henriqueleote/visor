@@ -40,6 +40,13 @@ internal fun BandPart(model: SettingsViewModel) {
                 locked = band.link != LinkState.READY,
             )
         },
+        {
+            ValueRow(
+                stringResource(R.string.band_buzz), null,
+                onClick = { model.band.buzz() },
+                locked = band.link != LinkState.READY,
+            )
+        },
         { SetUpRow(R.string.band_set_up_again) },
     )
 }

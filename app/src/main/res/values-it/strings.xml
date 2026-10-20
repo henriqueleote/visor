@@ -951,4 +951,22 @@
     <string name="prompter_refused_heat">Gli occhiali sono troppo caldi</string>
     <string name="prompter_refused_power">Gli occhiali non hanno abbastanza energia</string>
     <string name="home_set_up_again">Configura di nuovo</string>
+    <string name="gestures_title">Gesti</string>
+    <string name="gestures_card">Impara i gesti</string>
+    <string name="gestures_card_battery">Bracciale %1$d%%</string>
+    <string name="gestures_waiting">Connessione al bracciale</string>
+    <string name="gestures_no_band">Configura il Neural Band nelle Impostazioni</string>
+    <string name="lesson_select">Seleziona</string>
+    <string name="lesson_select_how">Tocca insieme pollice e indice</string>
+    <string name="lesson_back">Indietro</string>
+    <string name="lesson_back_how">Tocca insieme pollice e medio</string>
+    <string name="lesson_scroll">Scorri</string>
+    <string name="lesson_scroll_how">Fai scorrere il pollice lungo il lato dell\'indice</string>
+    <string name="lesson_assistant">Meta AI</string>
+    <string name="lesson_assistant_how">Tocca due volte il pollice sul lato dell\'indice</string>
+    <string name="lesson_wake">Riattiva e sospendi</string>
+    <string name="lesson_wake_how">Tocca due volte insieme pollice e medio</string>
+    <string name="lesson_apps">App</string>
+    <string name="lesson_apps_how">Tieni uniti pollice e medio</string>
+    <string name="band_buzz">Fai vibrare</string>
 </resources>

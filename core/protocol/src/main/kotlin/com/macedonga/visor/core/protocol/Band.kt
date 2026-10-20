@@ -14,11 +14,49 @@ object Band {
 
     class Battery(val percent: Int, val charging: Boolean)
 
-    /** RpcResponse {1: seq, 2: code, 3: BatteryInfoResp, 6: ConfigResp, ...}, as far as Visor reads it. */
-    class Response(val seq: Int, val code: Int, val battery: Battery?, val leftHanded: Boolean?)
+    /** RpcResponse {1: seq, 2: code, 3: BatteryInfoResp, 4: DeviceInfoResp, 6: ConfigResp, ...}, as far as Visor reads it. */
+    class Response(val seq: Int, val code: Int, val battery: Battery?, val leftHanded: Boolean?, val protocol: Int? = null)
+
+    /**
+     * A gesture, `EmgImu$GestureEvent`, sent as stream type 13 or a granular type from 60 to 200: {1 seq, 3 finger, 4 action,
+     * 5 derived action}. Fingers: THUMB 1, INDEX 2, MIDDLE 3. Actions: PRESS 1, RELEASE 2, TAP 3, DOUBLETAP 4, CLICK 5, UP 6,
+     * DOWN 7, LEFT 8, RIGHT 9. Derived: SINGLE_TAP 1, DOUBLE_TAP 2, BUTTON_HOLD 3, BUTTON_RELEASE 4, the four directions 5-8.
+     */
+    class Gesture(val type: Int, val seq: Int, val finger: Int, val action: Int, val derived: Int)
 
     /** RpcRequest {1: seq, 2: BatteryInfoReq {}}. */
     fun batteryRequest(seq: Int): ByteArray = request(seq, 2, ByteArray(0))
+
+    /** RpcRequest {1: seq, 3: DeviceInfoReq {}}: the answer names the band's protocol version (field 15). */
+    fun deviceInfoRequest(seq: Int): ByteArray = request(seq, 3, ByteArray(0))
+
+    /**
+     * RpcRequest {1: seq, 4: StreamControlReq}: the gestures on or off, as the Meta app asks. From protocol 2 a map by stream
+     * type (field 36) with priority 90 (35) and the use case "GenericC50" (37); before it the one bool, enableGestures (3).
+     */
+    fun gestureStreams(seq: Int, on: Boolean, protocol: Int?): ByteArray {
+        val map = protocol == null || protocol >= 2
+        val entries = if (map) GESTURE_STREAMS.fold(ByteArray(0)) { out, type ->
+            out + Wire.fieldBytes(36, Wire.fieldVarint(1, type.toLong()) + Wire.fieldVarint(2, if (on) 1 else 0))
+        } + Wire.fieldVarint(35, PRIORITY_GENERIC_C50) + Wire.fieldBytes(37, "GenericC50".encodeToByteArray()) else ByteArray(0)
+        val bool = if (!map || protocol == null) Wire.fieldVarint(3, if (on) 1 else 0) else ByteArray(0)
+        return request(seq, 4, bool + entries)
+    }
+
+    /** RpcRequest {1: seq, 11: GestureAckReq {1 the gesture's seq, 2 source MWA_ANDROID, 3 topology DIRECT}}, one per gesture. */
+    fun gestureAck(seq: Int, gesture: Int): ByteArray =
+        request(seq, 11, Wire.fieldVarint(1, gesture.toLong()) + Wire.fieldVarint(2, SOURCE_MWA_ANDROID) + Wire.fieldVarint(3, TOPOLOGY_DIRECT))
+
+    /** RpcRequest {1: seq, 17: HapticsReq {1: VibrateReq {1 duration, 2 frequency, 3 amplitude}}}; the units are not known. */
+    fun vibrate(seq: Int, duration: Long, frequency: Float, amplitude: Int): ByteArray =
+        request(seq, 17, Wire.fieldBytes(1, Wire.fieldVarint(1, duration) + Wire.fieldFloat(2, frequency) + Wire.fieldVarint(3, amplitude.toLong())))
+
+    fun isGesture(type: Int): Boolean = type == 13 || type in 60..200
+
+    fun gesture(type: Int, payload: ByteArray): Gesture {
+        val f = Wire.parse(payload)
+        return Gesture(type, f.varint(1).toInt(), f.varint(3).toInt(), f.varint(4).toInt(), f.varint(5).toInt())
+    }
 
     /** RpcRequest {1: seq, 5: ConfigReq}: with [leftHanded] it sets the wrist (field 10), empty it reads the config. */
     fun configRequest(seq: Int, leftHanded: Boolean? = null): ByteArray =
@@ -28,7 +66,8 @@ object Band {
         val f = Wire.parse(payload)
         val battery = if (f.has(3)) battery(Wire.parse(f.bytes(3)).bytes(1)) else null
         val left = if (f.has(6)) Wire.parse(f.bytes(6)).let { c -> if (c.has(10)) c.varint(10) != 0L else null } else null
-        return Response(f.varint(1).toInt(), f.varint(2).toInt(), battery, left)
+        val protocol = if (f.has(4)) Wire.parse(f.bytes(4)).let { d -> if (d.has(15)) d.varint(15).toInt() else null } else null
+        return Response(f.varint(1).toInt(), f.varint(2).toInt(), battery, left, protocol)
     }
 
     /** RpcStreamUpdate field 2, BatteryUpdate {1: BatteryData}. */
@@ -44,6 +83,12 @@ object Band {
     }
 
     private fun request(seq: Int, field: Int, body: ByteArray) = Wire.fieldVarint(1, seq.toLong()) + Wire.fieldBytes(field, body)
+
+    // Every gesture stream the Meta app turns on: 60-70, 100-109, 150-156 and 200.
+    private val GESTURE_STREAMS = (60..70) + (100..109) + (150..156) + 200
+    private const val PRIORITY_GENERIC_C50 = 90L
+    private const val SOURCE_MWA_ANDROID = 2L
+    private const val TOPOLOGY_DIRECT = 0L
 }
 
 /** svc150's NotifyLease {1: peerKeyHint, 2: leaseType}: the Display taking its band. Type 1 on the channel it opens. */

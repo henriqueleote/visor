@@ -6,17 +6,19 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
@@ -28,25 +30,31 @@ import com.macedonga.visor.R
 import com.macedonga.visor.core.connection.PrompterPhase
 import com.macedonga.visor.core.connection.Teleprompter
 import com.macedonga.visor.core.design.Visor
+import com.macedonga.visor.ui.VisorIcons
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 
 /** What the Display's cards on the home open. */
-enum class DisplayTool { TELEPROMPTER }
+enum class DisplayTool { TELEPROMPTER, GESTURES }
 
 @HiltViewModel
-class ShelfModel @Inject constructor(val script: PrompterScript, val prompter: Teleprompter) : ViewModel()
+class ShelfModel @Inject constructor(
+    val script: PrompterScript,
+    val prompter: Teleprompter,
+    val band: com.macedonga.visor.band.BandLink,
+) : ViewModel()
 
-/** The Display's tools on the home: a card each, the glasses' square on it showing what the tool puts there. */
+/** The Display's tools on the home: a card each, with what it holds now. */
 @Composable
 fun DisplayShelf(onOpen: (DisplayTool) -> Unit, modifier: Modifier = Modifier, model: ShelfModel = hiltViewModel()) {
     val text by model.script.text.collectAsStateWithLifecycle()
-    val look by model.script.look.collectAsStateWithLifecycle()
     val prompter by model.prompter.state.collectAsStateWithLifecycle()
+    val band by model.band.state.collectAsStateWithLifecycle()
     LazyRow(modifier, contentPadding = PaddingValues(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
         item(key = "prompter") {
             val words = text.split(Regex("\\s+")).count { it.isNotEmpty() }
             ToolCard(
+                VisorIcons.Lines,
                 stringResource(R.string.prompter_title),
                 when {
                     prompter.phase == PrompterPhase.SHOWING -> stringResource(R.string.prompter_on_glasses)
@@ -54,28 +62,35 @@ fun DisplayShelf(onOpen: (DisplayTool) -> Unit, modifier: Modifier = Modifier, m
                     else -> pluralStringResource(R.plurals.prompter_words, words, words)
                 },
                 onClick = { onOpen(DisplayTool.TELEPROMPTER) },
-            ) { ScriptPreview(text, look, Modifier.fillMaxWidth(), radius = 10.dp) }
+            )
+        }
+        item(key = "gestures") {
+            ToolCard(
+                VisorIcons.Band,
+                stringResource(R.string.gestures_title),
+                band.battery?.let { stringResource(R.string.gestures_card_battery, it) } ?: stringResource(R.string.gestures_card),
+                onClick = { onOpen(DisplayTool.GESTURES) },
+            )
         }
     }
 }
 
 @Composable
-private fun ToolCard(title: String, status: String, onClick: () -> Unit, square: @Composable () -> Unit) {
+private fun ToolCard(icon: ImageVector, title: String, status: String, onClick: () -> Unit) {
     Column(
         Modifier
             .width(CARD_WIDTH)
             .clip(RoundedCornerShape(18.dp))
             .background(Visor.colors.raised)
             .clickable(onClick = onClick)
-            .padding(8.dp),
+            .padding(18.dp),
     ) {
-        square()
-        Column(Modifier.padding(start = 8.dp, end = 8.dp, top = 12.dp, bottom = 6.dp)) {
-            Text(title, style = Visor.type.heading, color = Visor.colors.textPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Spacer(Modifier.height(2.dp))
-            Text(status, style = Visor.type.label, color = Visor.colors.textSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
-        }
+        Icon(icon, null, Modifier.size(22.dp), tint = Visor.colors.textPrimary)
+        Spacer(Modifier.height(28.dp))
+        Text(title, style = Visor.type.heading, color = Visor.colors.textPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Spacer(Modifier.height(2.dp))
+        Text(status, style = Visor.type.label, color = Visor.colors.textSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }
 
-private val CARD_WIDTH = 172.dp
+private val CARD_WIDTH = 160.dp

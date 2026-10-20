@@ -47,11 +47,16 @@ data class BandState(
     val at: Long? = null,
     // The Display holds the band; the phone steps back, as Meta's app does.
     val leased: Boolean = false,
+    // The band's RPC protocol, from its device info: 2 and up turn streams on by a map.
+    val protocol: Int? = null,
+    // A lesson has the band's gestures coming to the phone.
+    val gestures: Boolean = false,
 )
 
 /**
  * The phone's own link to the Neural Band: up while Visor runs for the band's Display, down while the Display holds a
- * lease on it (svc150). It reads the battery and the wrist over svc52822 and sets the wrist.
+ * lease on it (svc150), unless a lesson wants the band. It reads the battery and the wrist over svc52822 and sets the
+ * wrist; in a lesson it turns the gesture streams on and acks each gesture, as the Meta app does.
  */
 @Singleton
 class BandLink @Inject constructor(
@@ -66,6 +71,9 @@ class BandLink @Inject constructor(
     private val seq = AtomicInteger(1)
     private val leased = MutableStateFlow(false)
     private val held = MutableStateFlow(true)
+    private val lesson = MutableStateFlow(false)
+    private val _gestures = kotlinx.coroutines.flow.MutableSharedFlow<Band.Gesture>(extraBufferCapacity = 32)
+    val gestures: kotlinx.coroutines.flow.SharedFlow<Band.Gesture> = _gestures
 
     @Volatile private var session: GlassesSession? = null
     private var job: Job? = null
@@ -79,8 +87,10 @@ class BandLink @Inject constructor(
             connection.state.collect { if (it.link != LinkState.READY && leased.value) leased.value = false }
         }
         scope.launch {
-            combine(connection.running, connection.pair, bands.all, leased, held) { running, pair, _, lease, hold ->
-                bands.forGlasses(pair)?.takeIf { running && hold && !lease }
+            // A lesson takes the band from the Display; when it ends, the lease decides again.
+            val stepBack = combine(leased, lesson) { lease, learning -> lease && !learning }
+            combine(connection.running, connection.pair, bands.all, stepBack, held) { running, pair, _, away, hold ->
+                bands.forGlasses(pair)?.takeIf { running && hold && !away }
             }.distinctUntilChanged().collect { band -> gate.withLock { switchTo(band) } }
         }
         scope.launch { leased.collect { lease -> _state.update { it.copy(leased = lease) } } }
@@ -101,15 +111,47 @@ class BandLink @Inject constructor(
         held.value = true
     }
 
+    /** Have the band's gestures come here: the band is taken from the Display for as long as it lasts. */
+    fun startLesson() {
+        if (lesson.value) return
+        lesson.value = true
+        log.add("Band: a lesson takes the band")
+        if (_state.value.link == LinkState.READY) streams(true)
+    }
+
+    fun endLesson() {
+        if (!lesson.value) return
+        if (_state.value.link == LinkState.READY) streams(false)
+        lesson.value = false
+        log.add("Band: the lesson gives the band back")
+    }
+
+    /** A short buzz on the band; false when it is not connected. */
+    fun buzz(): Boolean = send { seq ->
+        listOf(Band.vibrate(seq.getAndIncrement(), BUZZ_DURATION, BUZZ_HZ, BUZZ_AMPLITUDE))
+    }
+
     /** Put the band on [left] or the right wrist; read back at once. */
-    fun setLeftHanded(left: Boolean): Boolean {
+    fun setLeftHanded(left: Boolean): Boolean = send { seq ->
+        listOf(Band.configRequest(seq.getAndIncrement(), left), Band.configRequest(seq.getAndIncrement()))
+    }
+
+    private fun streams(on: Boolean) {
+        val sent = send { seq -> listOf(Band.gestureStreams(seq.getAndIncrement(), on, _state.value.protocol)) }
+        if (sent) {
+            _state.update { it.copy(gestures = on) }
+            log.add("Band: gestures ${if (on) "on" else "off"} (protocol ${_state.value.protocol ?: "not read"})")
+        }
+    }
+
+    /** Requests on the band's RPC, in order; false when the band is not connected. */
+    private fun send(requests: (AtomicInteger) -> List<ByteArray>): Boolean {
         val running = session ?: return false
         if (_state.value.link != LinkState.READY) return false
         running.submit(
             SessionCommand { s ->
                 val mux = s.connection ?: return@SessionCommand
-                mux.sendOnService(ServiceId.WIRELESS_INPUT.value, Band.REQUEST_TYPE, Band.configRequest(seq.getAndIncrement(), left))
-                mux.sendOnService(ServiceId.WIRELESS_INPUT.value, Band.REQUEST_TYPE, Band.configRequest(seq.getAndIncrement()))
+                for (r in requests(seq)) mux.sendOnService(ServiceId.WIRELESS_INPUT.value, Band.REQUEST_TYPE, r)
             },
         )
         return true
@@ -125,7 +167,7 @@ class BandLink @Inject constructor(
         session = null
         job = null
         if (band == null) {
-            _state.update { it.copy(link = LinkState.DISCONNECTED) }
+            _state.update { it.copy(link = LinkState.DISCONNECTED, gestures = false) }
             return
         }
         val key = band.key ?: store.ownerKeyPem() ?: return
@@ -141,10 +183,15 @@ class BandLink @Inject constructor(
             opened.events.collect { event ->
                 when (event) {
                     is LinkStateChanged -> {
-                        _state.update { it.copy(link = event.state) }
+                        _state.update { it.copy(link = event.state, gestures = if (event.state == LinkState.READY) it.gestures else false) }
                         if (event.state == LinkState.READY) {
                             log.add("Band: link up")
-                            ask(opened)
+                            ask(opened, info = true)
+                            // The gestures wait for the device info, which picks how to ask for them; not for long.
+                            if (lesson.value) launch {
+                                delay(INFO_WAIT_MS)
+                                if (lesson.value && !_state.value.gestures) streams(true)
+                            }
                         }
                     }
                     is ServiceData -> if (event.serviceId == ServiceId.WIRELESS_INPUT.value) onBand(event)
@@ -165,19 +212,26 @@ class BandLink @Inject constructor(
         }
     }
 
-    private fun ask(opened: GlassesSession) = opened.submit(
+    private fun ask(opened: GlassesSession, info: Boolean = false) = opened.submit(
         SessionCommand { s ->
             val mux = s.connection ?: return@SessionCommand
+            if (info) mux.sendOnService(ServiceId.WIRELESS_INPUT.value, Band.REQUEST_TYPE, Band.deviceInfoRequest(seq.getAndIncrement()))
             mux.sendOnService(ServiceId.WIRELESS_INPUT.value, Band.REQUEST_TYPE, Band.batteryRequest(seq.getAndIncrement()))
             mux.sendOnService(ServiceId.WIRELESS_INPUT.value, Band.REQUEST_TYPE, Band.configRequest(seq.getAndIncrement()))
         },
     )
 
     private fun onBand(event: ServiceData) {
+        val type = event.messageType and 0xFF
+        if (Band.isGesture(type)) return onGesture(type, event.payload)
         val battery = runCatching {
-            when (event.messageType and 0xFF) {
+            when (type) {
                 Band.RESPONSE -> Band.response(event.payload).also { r ->
                     if (r.leftHanded != null) _state.update { it.copy(leftHanded = r.leftHanded) }
+                    if (r.protocol != null) {
+                        _state.update { it.copy(protocol = r.protocol) }
+                        if (lesson.value && !_state.value.gestures) streams(true)
+                    }
                 }.battery
                 Band.STREAM_UPDATE -> Band.streamBattery(event.payload)
                 else -> null
@@ -186,7 +240,23 @@ class BandLink @Inject constructor(
         _state.update { it.copy(battery = battery.percent, charging = battery.charging, at = System.currentTimeMillis()) }
     }
 
+    // Every gesture is acked, as the Meta app does; a lesson's gestures go in the log so the names can be checked.
+    private fun onGesture(type: Int, payload: ByteArray) {
+        val g = runCatching { Band.gesture(type, payload) }.getOrElse {
+            log.add("Band: unreadable gesture type $type: ${it.message}")
+            return
+        }
+        send { seq -> listOf(Band.gestureAck(seq.getAndIncrement(), g.seq)) }
+        if (lesson.value) log.add("Band: gesture type ${g.type}, finger ${g.finger}, action ${g.action}, derived ${g.derived}")
+        _gestures.tryEmit(g)
+    }
+
     private companion object {
         const val POLL_MS = 5 * 60_000L
+        const val INFO_WAIT_MS = 1_500L
+        // Nothing in the Meta app sends a buzz, so these are a guess at milliseconds, hertz and a 0-255 strength.
+        const val BUZZ_DURATION = 200L
+        const val BUZZ_HZ = 170f
+        const val BUZZ_AMPLITUDE = 160
     }
 }
