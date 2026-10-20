@@ -62,6 +62,7 @@ class DebugReceiver : BroadcastReceiver() {
     @Inject lateinit var captions: com.macedonga.visor.core.connection.Captions
     @Inject lateinit var languages: com.macedonga.visor.language.LanguageInstaller
     @Inject lateinit var captionPacks: com.macedonga.visor.display.CaptionPacks
+    @Inject lateinit var screencast: com.macedonga.visor.core.media.Screencast
 
     override fun onReceive(context: Context, intent: Intent) {
         val action = intent.action?.substringAfterLast('.').orEmpty()
@@ -327,6 +328,17 @@ class DebugReceiver : BroadcastReceiver() {
                     { offers -> offers.joinToString("\n") { "${it.feature} ${it.resource} ${it.version} ${it.type} app ${it.appId} ${it.size} ${it.url}" }.ifEmpty { "none" } },
                     { "failed: ${it.message}" },
                 )
+            }
+            // --es key <MobileConfig param> --ez value true|false: one bool written to the glasses.
+            "MC_SET" -> answerLater {
+                config.send(mapOf(intent.getStringExtra("key").orEmpty() to intent.getBooleanExtra("value", false))) ?: "sent"
+            }
+            // --ez stop true to stop; the answer is the state once it settles.
+            "MIRROR" -> answerLater {
+                if (intent.getBooleanExtra("stop", false)) screencast.stop() else screencast.start()
+                kotlinx.coroutines.delay(500)
+                withTimeoutOrNull(40_000) { screencast.state.first { it.phase != com.macedonga.visor.core.media.ScreencastPhase.STARTING } }
+                screencast.state.value.toString()
             }
             // --es feature live_captions_en: Meta's pack installed through the glasses' OTA service.
             "CAPTION_PACK" -> answerLater {

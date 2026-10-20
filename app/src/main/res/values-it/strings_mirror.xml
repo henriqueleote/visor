@@ -14,4 +14,6 @@
     <string name="mirror_asleep">Lo schermo degli occhiali è spento.</string>
     <string name="mirror_timeout">Gli occhiali sono andati in timeout.</string>
     <string name="mirror_unknown">Gli occhiali hanno rifiutato lo schermo condiviso.</string>
+    <string name="mirror_needs_restart">Riavvia gli occhiali una volta per attivare la proiezione.</string>
+    <string name="mirror_no_wifi">Il Wi-Fi con gli occhiali non si è attivato: %1$s</string>
 </resources>

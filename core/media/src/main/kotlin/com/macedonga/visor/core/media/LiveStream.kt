@@ -887,6 +887,8 @@ class LiveStream(
             }
             // Airship, whose receiver reports for itself; everything else goes in the log.
             event.serviceId == 28 || event.serviceId == SVC_AIRSHIP -> Unit
+            // The Display's screencast, which reads its own.
+            event.serviceId == SVC_HN_SCREENCAST || event.serviceId == SVC_HN_SCREENCAST_MANAGER -> Unit
             else -> say(
                 "Wi-Fi: service ${event.serviceId} type ${event.messageType}, ${event.payload.size} bytes " +
                     event.payload.take(16).joinToString("") { "%02x".format(it) },

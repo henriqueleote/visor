@@ -124,6 +124,8 @@ private fun phraseOf(s: ScreencastState): String = when (s.phase) {
         ScreencastFault.NOT_READ -> stringResource(R.string.mirror_not_read)
         ScreencastFault.NO_FLAG -> stringResource(R.string.mirror_no_flag)
         ScreencastFault.FLAG_NOT_SENT -> stringResource(R.string.mirror_flag_not_sent, s.detail)
+        ScreencastFault.NEEDS_RESTART -> stringResource(R.string.mirror_needs_restart)
+        ScreencastFault.NO_WIFI -> stringResource(R.string.mirror_no_wifi, s.detail)
         ScreencastFault.NO_ANSWER -> stringResource(R.string.mirror_no_answer)
         ScreencastFault.ASLEEP -> stringResource(R.string.mirror_asleep)
         ScreencastFault.GLASSES_TIMEOUT -> stringResource(R.string.mirror_timeout)

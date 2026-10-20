@@ -275,7 +275,8 @@ object ConnectionModule {
 
     @Provides
     @Singleton
-    fun screencast(connection: GlassesConnection, config: GlassesConfig): Screencast = Screencast(connection, config)
+    fun screencast(connection: GlassesConnection, config: GlassesConfig, live: com.macedonga.visor.core.media.LiveStream): Screencast =
+        Screencast(connection, config, live)
 
     @Provides
     @Singleton
