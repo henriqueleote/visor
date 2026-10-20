@@ -89,7 +89,12 @@ private fun RequestRow(r: GlassesRequest) {
             outcome,
             r.bytes.takeIf { it > 0 }?.let(::size),
             r.millis.takeIf { r.outcome != null }?.let { "$it ms" },
-            if (r.source < 0) stringResource(R.string.requests_tunnel) else stringResource(R.string.requests_source, r.source),
+            when (r.source) {
+                -1 -> stringResource(R.string.requests_tunnel)
+                -2 -> stringResource(R.string.requests_meta)
+                -3 -> stringResource(R.string.requests_location)
+                else -> stringResource(R.string.requests_source, r.source)
+            },
             r.options.ifEmpty { null },
         )
         Text(parts.joinToString(" · "), style = MONO, color = if (r.failed) colors.signal else colors.textTertiary, modifier = Modifier.padding(top = 2.dp))

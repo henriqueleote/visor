@@ -6,4 +6,6 @@
     <string name="requests_running">running</string>
     <string name="requests_source">source %1$d</string>
     <string name="requests_tunnel">tunnel</string>
+    <string name="requests_meta">Meta</string>
+    <string name="requests_location">location</string>
 </resources>

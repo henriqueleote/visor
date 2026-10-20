@@ -64,6 +64,7 @@ class DebugReceiver : BroadcastReceiver() {
     @Inject lateinit var captionPacks: com.macedonga.visor.display.CaptionPacks
     @Inject lateinit var screencast: com.macedonga.visor.core.media.Screencast
     @Inject lateinit var requests: com.macedonga.visor.connection.RequestLog
+    @Inject lateinit var login: com.macedonga.visor.login.MetaLogin
 
     override fun onReceive(context: Context, intent: Intent) {
         val action = intent.action?.substringAfterLast('.').orEmpty()
@@ -343,6 +344,25 @@ class DebugReceiver : BroadcastReceiver() {
                 kotlinx.coroutines.delay(5_000)
                 watch.cancel()
                 heard.joinToString("\n").ifEmpty { "nothing" }
+            }
+            // --es doc <client_doc_id> --es name <friendly name> --es vars <json>: one query on Meta's ar GraphQL, as the
+            // user; the answer's first 4000 characters.
+            "GRAPHQL" -> answerLater {
+                val token = login.source.get()
+                val body = com.macedonga.visor.core.identity.pyUrlencode(
+                    linkedMapOf(
+                        "fb_api_req_friendly_name" to intent.getStringExtra("name").orEmpty(),
+                        "client_doc_id" to intent.getStringExtra("doc").orEmpty(),
+                        "variables" to (intent.getStringExtra("vars64")?.let { String(android.util.Base64.decode(it, 0)) } ?: intent.getStringExtra("vars") ?: "{}"),
+                        "method" to "post", "locale" to "en_US", "pretty" to "false", "format" to "json",
+                    ),
+                )
+                val reply = com.macedonga.visor.core.identity.UrlConnectionPost.post(
+                    "https://ar-genai.graph.meta.com/graphql",
+                    mapOf("Authorization" to "OAuth ${token.value}", "Content-Type" to "application/x-www-form-urlencoded"),
+                    body.toByteArray(),
+                )
+                "HTTP ${reply.status}: " + String(reply.body).take(4000)
             }
             // The request log's newest entries, links cut at their query.
             "REQUESTS" -> resultData = requests.items.value.takeLast(intent.getIntExtra("n", 30)).joinToString("\n") {
