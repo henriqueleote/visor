@@ -33,7 +33,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
@@ -56,8 +55,8 @@ data class BandState(
 )
 
 /**
- * The phone's own link to the Neural Band: the band takes one host at a time, so the phone leaves it to the Display
- * while the Display is connected or holds a lease on it (svc150), and takes it only for a lesson or one errand (the
+ * The phone's own link to the Neural Band: the band takes one host at a time, so the phone leaves it to the Display,
+ * which may hold a lease on it (svc150), and takes it only for a lesson or one errand (the
  * wrist, a buzz); the Display reports the band's battery itself. It reads the battery and the wrist over svc52822 and sets the
  * wrist; in a lesson it turns the gesture streams on and acks each gesture, as the Meta app does.
  */
@@ -91,9 +90,9 @@ class BandLink @Inject constructor(
             connection.state.collect { if (it.link != LinkState.READY && leased.value) leased.value = false }
         }
         scope.launch {
-            // A lesson or an errand takes the band from the Display; when it ends, the band goes back.
-            val displayUp = connection.state.map { it.link == LinkState.READY }.distinctUntilChanged()
-            val stepBack = combine(leased, displayUp, lesson, borrowing) { lease, up, learning, errand -> (lease || up) && !learning && !errand }
+            // A lesson or an errand takes the band from the Display; when it ends, the band goes back. Never otherwise:
+            // the Display reaches the band on its own, and a phone holding it while the Display restarts keeps it off.
+            val stepBack = combine(lesson, borrowing) { learning, errand -> !learning && !errand }
             combine(connection.running, connection.pair, bands.all, stepBack, held) { running, pair, _, away, hold ->
                 bands.forGlasses(pair)?.takeIf { running && hold && !away }
             }.distinctUntilChanged().collect { band -> gate.withLock { switchTo(band) } }
