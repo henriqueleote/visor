@@ -19,6 +19,10 @@
     <uses-permission android:name="android.permission.BLUETOOTH_SCAN" android:usesPermissionFlags="neverForLocation" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />
+    <!-- The companion device's presence wakes Visor from the background, as the Meta app's does. -->
+    <uses-permission android:name="android.permission.REQUEST_COMPANION_RUN_IN_BACKGROUND" />
+    <uses-permission android:name="android.permission.REQUEST_COMPANION_USE_DATA_IN_BACKGROUND" />
+    <uses-permission android:name="android.permission.REQUEST_COMPANION_START_FOREGROUND_SERVICES_FROM_BACKGROUND" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <!-- The live view's notification as a Live Update on Android 16. -->
     <uses-permission android:name="android.permission.POST_PROMOTED_NOTIFICATIONS" />
@@ -117,6 +121,16 @@
             android:name=".connection.GlassesService"
             android:exported="false"
             android:foregroundServiceType="connectedDevice" />
+
+        <!-- Bound by the system when the associated glasses appear, and starts the connection from the background. -->
+        <service
+            android:name=".connection.GlassesPresence"
+            android:exported="false"
+            android:permission="android.permission.BIND_COMPANION_DEVICE_SERVICE">
+            <intent-filter>
+                <action android:name="android.companion.CompanionDeviceService" />
+            </intent-filter>
+        </service>
 
         <!-- Mirrors the phone's notifications to the glasses, and tells them which app is playing. -->
         <service

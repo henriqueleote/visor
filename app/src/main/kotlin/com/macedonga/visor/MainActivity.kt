@@ -14,7 +14,9 @@ import com.macedonga.visor.core.connection.GlassesConnection
 import com.macedonga.visor.core.connection.GlassesLink
 import com.macedonga.visor.core.design.VisorTheme
 import com.macedonga.visor.core.session.LinkState
+import com.macedonga.visor.log.EventLog
 import com.macedonga.visor.phone.askCompanionOnce
+import com.macedonga.visor.phone.observeCompanions
 import com.macedonga.visor.update.Updates
 import com.macedonga.visor.update.downloadIntent
 import dagger.hilt.android.AndroidEntryPoint
@@ -32,6 +34,7 @@ class MainActivity : ComponentActivity() {
 
     @Inject lateinit var updates: Updates
     @Inject lateinit var connection: GlassesConnection
+    @Inject lateinit var log: EventLog
 
     private val companion = registerForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { }
 
@@ -56,6 +59,12 @@ class MainActivity : ComponentActivity() {
                     .collect { address -> askCompanionOnce(this@MainActivity, address) { companion.launch(IntentSenderRequest.Builder(it).build()) } }
             }
         }
+    }
+
+    // Also after the system's association dialog, which returns here.
+    override fun onResume() {
+        super.onResume()
+        observeCompanions(this, log)
     }
 
     override fun onNewIntent(intent: Intent) {
