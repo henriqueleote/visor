@@ -329,6 +329,20 @@ class DebugReceiver : BroadcastReceiver() {
                     { "failed: ${it.message}" },
                 )
             }
+            // --ei svc --ei type --es hex: one message on a service; the answer is what the glasses said within 5 s.
+            "SEND" -> answerLater {
+                val svc = intent.getIntExtra("svc", 0)
+                val body = intent.getStringExtra("hex").orEmpty().chunked(2).filter { it.length == 2 }.map { it.toInt(16).toByte() }.toByteArray()
+                val heard = java.util.Collections.synchronizedList(mutableListOf<String>())
+                val watch = scope.launch {
+                    launch { connection.serviceData.collect { if (it.serviceId == svc) heard += "type ${it.messageType}: " + it.payload.joinToString("") { b -> "%02x".format(b) } } }
+                    launch { connection.warnings.collect { if (it.contains("service $svc ")) heard += it } }
+                }
+                connection.submit { it.sendOnService(svc, intent.getIntExtra("type", 0), body) }
+                kotlinx.coroutines.delay(5_000)
+                watch.cancel()
+                heard.joinToString("\n").ifEmpty { "nothing" }
+            }
             // --es key <MobileConfig param> --ez value true|false: one bool written to the glasses.
             "MC_SET" -> answerLater {
                 config.send(mapOf(intent.getStringExtra("key").orEmpty() to intent.getBooleanExtra("value", false))) ?: "sent"
