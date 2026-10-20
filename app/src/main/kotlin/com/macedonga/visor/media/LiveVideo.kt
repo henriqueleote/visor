@@ -11,11 +11,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.viewinterop.AndroidView
 import com.macedonga.visor.core.media.LiveDecoder
 import com.macedonga.visor.core.media.LiveStream
+import com.macedonga.visor.core.media.Playout
 import java.io.ByteArrayOutputStream
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 /**
@@ -80,22 +82,23 @@ fun LiveVideoView(video: LiveVideo, modifier: Modifier = Modifier) {
 @Composable
 fun rememberLiveVideo(live: LiveStream): LiveVideo = remember(live) { LiveVideo(live) }
 
-// Later than this, a frame is decoded but not shown, so the decoder catches up without a keyframe.
+// Later than this past its turn, a frame is decoded but not shown, so the decoder catches up without a keyframe.
 private const val CATCH_UP_MS = 250L
 
 // Waiting this long for a keyframe, configure the stream again: that restarts the encoder on one.
 private const val KEY_WAIT_MS = 2_000L
 
 /**
- * Feeds frames to a decoder rebuilt at every stream start, size change or decoder error. New parameter sets go in
- * as they arrive, a late frame is decoded without being shown, and after a lost frame it waits for a keyframe,
- * asking for one when none comes.
+ * Feeds frames to a decoder rebuilt at every stream start, size change or decoder error, each at its turn by
+ * [Playout]. New parameter sets go in as they arrive, a late frame is decoded without being shown, and after a lost
+ * frame it waits for a keyframe, asking for one when none comes.
  */
 private class Feeder(private val live: LiveStream, private val surface: Surface) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default.limitedParallelism(1))
 
     private val job = scope.launch {
         var decoder: LiveDecoder? = null
+        var playout = Playout()
         var generation = -1
         var lastSeq = -1L
         var needKey = true
@@ -117,6 +120,7 @@ private class Feeder(private val live: LiveStream, private val surface: Surface)
                     current?.release()
                     val q = live.requested
                     decoder = LiveDecoder(surface, q.width, q.height) { w, h -> live.decodedSize.value = "${w}x$h" }
+                    playout = Playout()
                     shownBase = 0
                     generation = live.generation.value
                     fedConfig = live.receiver.codecConfig.value
@@ -133,19 +137,22 @@ private class Feeder(private val live: LiveStream, private val surface: Surface)
 
                 if (lastSeq >= 0 && frame.seq != lastSeq + 1) wantKey()
                 lastSeq = frame.seq
-                val now = System.nanoTime()
-                val waited = (now - frame.arrivedNs) / 1_000_000
-                live.waitMs.value = waited
+                val due = playout.due(frame.ptsUs, frame.arrivedNs)
 
                 if (needKey && !frame.isKey) {
                     live.skipped.value += 1
+                    val now = System.nanoTime()
                     if ((now - needKeySince) / 1_000_000 > KEY_WAIT_MS) {
                         live.requestKeyframe()
                         needKeySince = now
                     }
                     return@collect
                 }
-                val used = runCatching { d.feed(frame, fedConfig, show = waited <= CATCH_UP_MS) }.getOrDefault(false)
+                val early = (due - System.nanoTime()) / 1_000_000
+                if (early > 0) delay(early)
+                val now = System.nanoTime()
+                live.waitMs.value = (now - frame.arrivedNs) / 1_000_000
+                val used = runCatching { d.feed(frame, fedConfig, show = (now - due) / 1_000_000 <= CATCH_UP_MS) }.getOrDefault(false)
                 if (used) needKey = false else wantKey()
 
                 if (now - shownAt >= 1_000_000_000L) {

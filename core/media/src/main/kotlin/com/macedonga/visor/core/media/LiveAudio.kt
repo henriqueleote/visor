@@ -19,6 +19,12 @@ fun aacFormatOf(asc: ByteArray): AacFormat? {
     return AacFormat(rate, channels.coerceAtLeast(1), asc)
 }
 
+/** The AAC-LC AudioSpecificConfig for what [config] asks for: 11 90 for 48 kHz stereo. */
+fun aacFormatFor(config: AudioConfig): AacFormat? {
+    val index = AAC_RATES.indexOf(config.sampleRate).takeIf { it >= 0 } ?: return null
+    return aacFormatOf(byteArrayOf(((2 shl 3) or (index shr 1)).toByte(), (((index and 1) shl 7) or (config.channels shl 3)).toByte()))
+}
+
 private val AAC_RATES = intArrayOf(96000, 88200, 64000, 48000, 44100, 32000, 24000, 22050, 16000, 12000, 11025, 8000, 7350)
 
 /** The glasses' AAC in the phone's speaker while [listening]: a decoder and a low-latency track. One per audio format. */

@@ -214,6 +214,8 @@ class StreamReceiver : Responder {
                 audioChunks.reset()
                 if (whole.size > 8) {
                     val pts = ByteBuffer.wrap(whole, 0, 8).order(ByteOrder.LITTLE_ENDIAN).long
+                    // Some glasses never send an AudioSpecificConfig (#31): the format asked for stands in until one comes.
+                    if (_aac.value == null) _aac.value = aacFormatFor(LIVE_AUDIO)
                     _audio.tryEmit(AudioPacket(pts, whole.copyOfRange(8, whole.size)))
                 }
             }
@@ -590,7 +592,7 @@ class LiveStream(
         }
 
         // The glasses' microphones, as the Meta app asks for them: 48 kHz stereo AAC-LC. Live AI hears on svc15 instead.
-        val audio = ask(StreamType.CONFIGURE_AUDIO_STREAM_REQUEST) { configureAudio(it, AudioConfig(), enabled = !p.liveAi) }
+        val audio = ask(StreamType.CONFIGURE_AUDIO_STREAM_REQUEST) { configureAudio(it, LIVE_AUDIO, enabled = !p.liveAi) }
         say("Configure audio ${if (p.liveAi) "off" else "48 kHz stereo AAC"}: ${audio.words()}")
 
         val control = ask(StreamType.CONTROL_STREAM_REQUEST) { controlStream(it, StreamAction.START) }
@@ -1072,6 +1074,9 @@ data class StreamHealth(val thermal: String? = null, val battery: Int? = null)
 
 private const val JOIN_TRIES = 8
 private const val PHOTO_WAIT_MS = 8_000L
+
+// The audio every Live asks for: AAC-LC at 48 kHz, stereo.
+private val LIVE_AUDIO = AudioConfig()
 
 /** The Wi-Fi Direct group's band, as [PhoneGroup.create] takes it. */
 const val BAND_AUTO = 0
