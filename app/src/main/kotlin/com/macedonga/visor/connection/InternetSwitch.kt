@@ -2,32 +2,61 @@ package com.macedonga.visor.connection
 
 import android.content.Context
 import android.net.ConnectivityManager
+import android.net.Network
 import android.net.NetworkCapabilities
+import android.net.LinkProperties
+import com.macedonga.visor.core.connection.GlassesConnection
 import com.macedonga.visor.core.protocol.Wire
 import com.macedonga.visor.core.session.DataXConnection
 import com.macedonga.visor.core.session.DataXMessage
+import com.macedonga.visor.core.session.LinkState
 import com.macedonga.visor.core.session.Responder
 import com.macedonga.visor.log.EventLog
 import dagger.hilt.android.qualifiers.ApplicationContext
+import java.util.concurrent.atomic.AtomicBoolean
 import javax.inject.Inject
 import javax.inject.Provider
 import javax.inject.Singleton
 
 /**
- * svc41108, internet_switch: the Display asks how the phone's internet is (type 6) and is told (type 3): connected,
- * metered, and the phone's DNS servers. Told it is connected, the Display may carry its apps' traffic to the phone.
+ * svc41108, internet_switch: how the phone's internet is (type 3): connected, metered, and its DNS servers. The Display
+ * asks on a channel of its own (type 6), but takes the state only on the phone's channel, which the phone opens when the
+ * Display asks and writes again whenever its network changes. The Display keeps its apps off the phone's internet until
+ * it hears the phone is connected.
  */
 @Singleton
 class InternetSwitch @Inject constructor(
     @ApplicationContext private val context: Context,
+    private val connection: Provider<GlassesConnection>,
     private val log: Provider<EventLog>,
 ) : Responder {
+    private val watching = AtomicBoolean(false)
 
-    override suspend fun respond(message: DataXMessage, connection: DataXConnection) {
+    override suspend fun respond(message: DataXMessage, mux: DataXConnection) {
         if (message.info.messageType != MT_LISTEN) return
         val state = phoneInternet()
         log.get().add("Internet: the Display asked; the phone is ${if (state.connected) "online" else "offline"}" + if (state.metered) ", metered" else "")
-        connection.send(DataXConnection.mirror(message.info.channelId), encode(state), messageType = MT_COMPANION_STATE)
+        mux.send(DataXConnection.mirror(message.info.channelId), encode(state), messageType = MT_COMPANION_STATE)
+        mux.sendOnService(SVC, MT_COMPANION_STATE, encode(state))
+        watchNetwork()
+    }
+
+    /** From the first question on, every change of the phone's network goes to the Display while it is connected. */
+    private fun watchNetwork() {
+        if (!watching.compareAndSet(false, true)) return
+        val cm = context.getSystemService(ConnectivityManager::class.java) ?: return
+        cm.registerDefaultNetworkCallback(object : ConnectivityManager.NetworkCallback() {
+            override fun onCapabilitiesChanged(network: Network, caps: NetworkCapabilities) = push()
+            override fun onLinkPropertiesChanged(network: Network, props: LinkProperties) = push()
+            override fun onLost(network: Network) = push()
+        })
+    }
+
+    private fun push() {
+        val glasses = connection.get()
+        if (glasses.state.value.link != LinkState.READY) return
+        val state = encode(phoneInternet())
+        glasses.submit { it.sendOnService(SVC, MT_COMPANION_STATE, state) }
     }
 
     private data class PhoneInternet(val connected: Boolean, val metered: Boolean, val dns: List<String>)

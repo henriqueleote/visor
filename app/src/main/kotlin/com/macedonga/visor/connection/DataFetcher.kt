@@ -62,7 +62,7 @@ class DataFetcher @Inject constructor(private val log: Provider<EventLog>, priva
         var sent = 0L
         val scheme = q.url.substringBefore(':').lowercase()
         if (scheme != "http" && scheme != "https") {
-            requests.finish(id, "refused, no $scheme here", failed = true)
+            requests.finish(id, "not served: $scheme links", failed = true)
             mux.sendStatus(reply, UNKNOWN_TYPE)
             return
         }

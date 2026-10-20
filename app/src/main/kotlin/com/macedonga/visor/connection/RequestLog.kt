@@ -41,6 +41,11 @@ class RequestLog @Inject constructor() {
         }
     }
 
+    /** A better name for what an entry reached, such as the server a TLS connection asked for. */
+    fun rename(id: Long, url: String) {
+        _items.update { list -> list.map { if (it.id == id) it.copy(url = url) else it } }
+    }
+
     fun clear() {
         _items.value = emptyList()
     }
