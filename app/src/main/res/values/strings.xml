@@ -61,6 +61,8 @@
     <string name="fact_free">Free space</string>
     <string name="fact_volume">Volume</string>
     <string name="fact_temperature">Temperature</string>
+    <string name="live_battery">Battery</string>
+    <string name="onboard_allowed">Allowed</string>
     <string name="fact_last_capture">Last capture</string>
     <string name="shutter_take_photo">Take photo</string>
     <string name="shutter_record_video">Record video</string>
@@ -715,6 +717,8 @@
     <string name="widget_name">Glasses</string>
     <string name="widget_description">Their battery and the case\'s, how they are, and your latest moment.</string>
     <string name="widget_case">Case %1$d%%</string>
+    <string name="notify_glasses">Glasses %1$d%%</string>
+    <string name="notify_glasses_charging">Glasses %1$d%%, charging</string>
     <string name="widget_no_moment">No photos yet</string>
     <string name="widget_sample_battery" translatable="false">82%</string>
     <string name="widget_sample_case">Case 64%</string>

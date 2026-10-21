@@ -287,7 +287,7 @@ private fun Readout(label: String, value: String?, charging: Boolean, fresh: Boo
         Text(label, style = Visor.type.label, color = Visor.colors.textSecondary)
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(value ?: "–", style = Visor.type.readout, color = Visor.colors.textPrimary)
-            if (charging) Icon(VisorIcons.Bolt, null, Modifier.padding(start = 6.dp).size(22.dp), tint = Visor.colors.textPrimary)
+            if (charging) Icon(VisorIcons.Bolt, stringResource(R.string.mood_charging), Modifier.padding(start = 6.dp).size(22.dp), tint = Visor.colors.textPrimary)
         }
     }
 }

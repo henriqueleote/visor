@@ -60,6 +60,8 @@
     <string name="fact_free">Spazio libero</string>
     <string name="fact_volume">Volume</string>
     <string name="fact_temperature">Temperatura</string>
+    <string name="live_battery">Batteria</string>
+    <string name="onboard_allowed">Consentito</string>
     <string name="fact_last_capture">Ultimo scatto</string>
     <string name="shutter_take_photo">Scatta foto</string>
     <string name="shutter_record_video">Registra video</string>
@@ -714,6 +716,8 @@
     <string name="widget_name">Occhiali</string>
     <string name="widget_description">La batteria degli occhiali e della custodia, come stanno, e il tuo ultimo momento.</string>
     <string name="widget_case">Custodia %1$d%%</string>
+    <string name="notify_glasses">Occhiali %1$d%%</string>
+    <string name="notify_glasses_charging">Occhiali %1$d%%, in carica</string>
     <string name="widget_no_moment">Ancora nessuna foto</string>
     <string name="widget_sample_case">Custodia 64%</string>
     <string name="tile_subtitle">%1$s · %2$d%%</string>

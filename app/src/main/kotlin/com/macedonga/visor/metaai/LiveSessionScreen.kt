@@ -29,6 +29,7 @@ import com.macedonga.visor.core.assistant.date
 import com.macedonga.visor.core.design.Visor
 import com.macedonga.visor.gallery.clockTime
 import com.macedonga.visor.gallery.dayTitle
+import com.macedonga.visor.ui.asHeading
 
 /** One Live AI session in full: each thing asked, the frame the camera had then, and the answer. */
 @Composable
@@ -41,7 +42,7 @@ fun LiveSessionScreen(conversation: String, onMemories: () -> Unit, model: MetaA
         LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 40.dp)) {
             item(key = "head") {
                 Column(Modifier.statusBarsPadding().padding(horizontal = SIDE).padding(top = 20.dp, bottom = 24.dp)) {
-                    Text(stringResource(R.string.meta_ai_live_ai), style = Visor.type.title, color = colors.textPrimary)
+                    Text(stringResource(R.string.meta_ai_live_ai), style = Visor.type.title, color = colors.textPrimary, modifier = Modifier.asHeading())
                     turns.firstOrNull()?.let {
                         Text(dayTitle(it.date) + ", " + clockTime(it.at), style = Visor.type.body, color = colors.textSecondary, modifier = Modifier.padding(top = 6.dp))
                     }

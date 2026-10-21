@@ -22,6 +22,7 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.unit.dp
 import com.macedonga.visor.core.design.Visor
+import com.macedonga.visor.ui.animationsOff
 import kotlin.math.exp
 import kotlin.math.max
 import kotlin.math.sin
@@ -76,13 +77,14 @@ fun StoryStage(cue: StageCue, look: LightLook, centrePx: Float, scale: Float, st
         var last = 0L
         val pose = stage.pose
         while (true) {
+            val still = animationsOff()
             withFrameNanos { t ->
                 val dt = if (last == 0L) 0f else ((t - last) / 1e9f).coerceAtMost(0.05f)
                 last = t
-                clock.floatValue += dt
+                if (!still) clock.floatValue += dt
                 val c = now
-                val k = 1f - exp(-dt / FOLLOW_SECONDS)
-                val sway = if (c.orbit) sin(clock.floatValue * ORBIT_SPEED) * ORBIT_DEGREES else 0f
+                val k = if (still) 1f else 1f - exp(-dt / FOLLOW_SECONDS)
+                val sway = if (c.orbit && !still) sin(clock.floatValue * ORBIT_SPEED) * ORBIT_DEGREES else 0f
                 pose.viewYaw += (c.yaw + sway - pose.viewYaw) * k
                 // The voice is in the light too: each loud moment swells it.
                 if (c.inward && c.level > 0.05f) stage.light.pulse(c.level * 0.6f)

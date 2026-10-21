@@ -43,6 +43,7 @@ import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.unit.IntOffset
+import com.macedonga.visor.ui.animationsOff
 import kotlin.math.abs
 import kotlin.math.roundToInt
 import kotlinx.coroutines.launch
@@ -227,7 +228,12 @@ fun SharedStage(stage: StageHolder, shown: Boolean) {
     Hinge(newest?.closed ?: stage.restingClosed, stage.pose, firstVisit = true, arrival = stage.intro::awaitLetGo)
     SideEffect { newest?.let { stage.restingClosed = it.closed } }
     LaunchedEffect(stage) {
-        snapshotFlow { stage.travelling }.collect { if (it) while (stage.travelling) withFrameNanos(stage::step) }
+        snapshotFlow { stage.travelling }.collect {
+            while (stage.travelling) {
+                val still = animationsOff()
+                withFrameNanos { stage.step(it, still) }
+            }
+        }
     }
     LaunchedEffect(stage) { snapshotFlow { stage.yaw.value }.collect { stage.pose.yawDegrees = it; stage.renderer.invalidate() } }
     LaunchedEffect(stage) { snapshotFlow { stage.slide.value }.collect { stage.pose.slide = it; stage.renderer.invalidate() } }

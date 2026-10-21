@@ -124,6 +124,8 @@ import com.macedonga.visor.stage.StageLight
 import com.macedonga.visor.stage.lookOf
 import com.macedonga.visor.stage.turnsThePair
 import com.macedonga.visor.ui.VisorIcons
+import com.macedonga.visor.ui.animationsOff
+import com.macedonga.visor.ui.asHeading
 import com.macedonga.visor.ui.rememberHaptics
 import kotlin.math.exp
 import kotlin.math.roundToInt
@@ -210,10 +212,11 @@ internal fun LiveGlow(sample: ImageBitmap?, window: Rect, step: Float) {
         var last = 0L
         val pixels = IntArray(GLOW_PIXELS)
         while (true) {
+            val still = animationsOff()
             withFrameNanos { now ->
                 val dt = if (last == 0L) 0f else ((now - last) / 1e9f).coerceAtMost(0.1f)
                 last = now
-                val k = 1f - exp(-dt / GLOW_DRIFT_SECONDS)
+                val k = if (still) 1f else 1f - exp(-dt / GLOW_DRIFT_SECONDS)
                 for (i in current.indices) current[i] += (target[i] - current[i]) * k
                 for (i in pixels.indices) {
                     val r = (current[i * 3] * 255).toInt().coerceIn(0, 255)
@@ -306,7 +309,7 @@ internal fun Arrival(
             if (leaving) {
                 // Nothing to say on the way out.
             } else if (failed) {
-                Text(stringResource(R.string.live_failed), style = Visor.type.heading, color = colors.textPrimary)
+                Text(stringResource(R.string.live_failed), style = Visor.type.heading, color = colors.textPrimary, modifier = Modifier.asHeading())
                 val problem = if (!allowed) LiveProblem.WIFI_DIRECT_DENIED else status.problem
                 Text(
                     stringResource(problemWords(problem)),
@@ -550,11 +553,11 @@ internal fun Heat(model: LiveViewModel, modifier: Modifier = Modifier) {
     val percent = device?.battery?.percent ?: stream.battery?.toLong()
     val hot = health == "SEVERE" || health == "CRITICAL" || health == "SHUTDOWN"
     Row(modifier, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-        Icon(VisorIcons.Heat, null, Modifier.size(16.dp), tint = if (hot) colors.signal else colors.textPrimary)
+        Icon(VisorIcons.Heat, stringResource(R.string.fact_temperature), Modifier.size(16.dp), tint = if (hot) colors.signal else colors.textPrimary)
         Text(stringResource(heatWords(health)), style = Visor.type.label, color = if (hot) colors.signal else colors.textPrimary)
         if (percent != null) {
             Spacer(Modifier.width(6.dp))
-            Icon(VisorIcons.Battery, null, Modifier.size(16.dp), tint = if (percent <= 10) colors.signal else colors.textPrimary)
+            Icon(VisorIcons.Battery, stringResource(R.string.live_battery), Modifier.size(16.dp), tint = if (percent <= 10) colors.signal else colors.textPrimary)
             Text("$percent%", style = TABULAR_LABEL, color = colors.textPrimary)
         }
     }
@@ -744,7 +747,7 @@ internal fun SteppedChrome(
                             ),
                         contentAlignment = Alignment.Center,
                     ) {
-                        Icon(VisorIcons.Camera, null, Modifier.size(22.dp), tint = colors.textPrimary)
+                        Icon(VisorIcons.Camera, stringResource(R.string.live_photo), Modifier.size(22.dp), tint = colors.textPrimary)
                     }
                 }
             }
@@ -808,7 +811,7 @@ internal fun LiveSheet(model: LiveViewModel, onSettings: () -> Unit, onDismiss: 
         shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
     ) {
         Column(Modifier.fillMaxWidth().navigationBarsPadding().padding(start = 20.dp, end = 20.dp, bottom = 20.dp)) {
-            Text(stringResource(R.string.live_more), style = Visor.type.heading, color = colors.textPrimary, modifier = Modifier.padding(bottom = 14.dp))
+            Text(stringResource(R.string.live_more), style = Visor.type.heading, color = colors.textPrimary, modifier = Modifier.asHeading().padding(bottom = 14.dp))
             Group {
                 val rows = listOf(
                     LiveOverlay.READOUTS to R.string.live_overlay_readouts,
@@ -862,7 +865,7 @@ internal fun BroadcastSheet(model: LiveViewModel, onDismiss: () -> Unit) {
         shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
     ) {
         Column(Modifier.fillMaxWidth().navigationBarsPadding().padding(start = 20.dp, end = 20.dp, bottom = 20.dp)) {
-            Text(stringResource(R.string.live_broadcast), style = Visor.type.heading, color = colors.textPrimary)
+            Text(stringResource(R.string.live_broadcast), style = Visor.type.heading, color = colors.textPrimary, modifier = Modifier.asHeading())
             if (airing) {
                 val host = runCatching { java.net.URI(settings.rtmpUrl).host }.getOrNull() ?: settings.rtmpUrl
                 Text(stringResource(R.string.live_broadcast_to, host), style = Visor.type.label, color = colors.textSecondary, modifier = Modifier.padding(top = 4.dp))

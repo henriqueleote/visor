@@ -85,6 +85,9 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.KeyboardType
@@ -117,6 +120,9 @@ import com.macedonga.visor.stage.nod
 import com.macedonga.visor.stage.shake
 import com.macedonga.visor.ui.Haptics
 import com.macedonga.visor.ui.VisorIcons
+import com.macedonga.visor.ui.asHeading
+import com.macedonga.visor.ui.lineLimit
+import com.macedonga.visor.ui.switchRow
 import com.macedonga.visor.ui.rememberHaptics
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
@@ -271,7 +277,7 @@ fun TopBar(title: String, actions: @Composable RowScope.() -> Unit = {}) {
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             autoSize = TextAutoSize.StepBased(minFontSize = 18.sp, maxFontSize = Visor.type.title.fontSize, stepSize = 1.sp),
-            modifier = Modifier.weight(1f).padding(start = 4.dp, end = 8.dp),
+            modifier = Modifier.weight(1f).asHeading().padding(start = 4.dp, end = 8.dp),
         )
         actions()
     }
@@ -369,7 +375,7 @@ fun Rows(vararg rows: (@Composable () -> Unit)?) {
 /** A small grey heading over a card. */
 @Composable
 fun SectionLabel(text: String, modifier: Modifier = Modifier) {
-    Text(text, style = Visor.type.label, color = Visor.colors.textSecondary, modifier = modifier.padding(start = 32.dp, end = 32.dp, top = 28.dp, bottom = 8.dp))
+    Text(text, style = Visor.type.label, color = Visor.colors.textSecondary, modifier = modifier.asHeading().padding(start = 32.dp, end = 32.dp, top = 28.dp, bottom = 8.dp))
 }
 
 /** A note under a card. */
@@ -387,7 +393,7 @@ fun ChangedDot() {
 /** The mono line engineering rows carry: the key the firmware knows, and what the glasses store. */
 @Composable
 fun KeyLine(text: String) {
-    Text(text, style = MONO, color = Visor.colors.textSecondary, maxLines = 2, overflow = TextOverflow.Ellipsis)
+    Text(text, style = MONO, color = Visor.colors.textSecondary, maxLines = lineLimit(2), overflow = TextOverflow.Ellipsis)
 }
 
 val MONO = TextStyle(fontFamily = FontFamily.Monospace, fontSize = 11.sp, lineHeight = 15.sp)
@@ -414,6 +420,7 @@ fun RowFrame(
     dense: Boolean = false,
     below: (@Composable ColumnScope.() -> Unit)? = null,
     dim: Boolean = false,
+    state: Modifier = Modifier,
     trailing: @Composable RowScope.() -> Unit = {},
 ) {
     val host = LocalHost.current
@@ -423,7 +430,7 @@ fun RowFrame(
         else -> onClick
     }
     val base = if (tap != null || onLongClick != null) {
-        Modifier.combinedClickable(onClick = tap ?: {}, onLongClick = onLongClick)
+        Modifier.combinedClickable(onClick = tap ?: {}, onLongClick = onLongClick).then(state)
     } else Modifier
     Column(
         base
@@ -457,7 +464,7 @@ private fun RowText(overline: String?, title: String, changed: Boolean, value: S
         contents = listOf(
             {
                 Column(verticalArrangement = Arrangement.spacedBy(line)) {
-                    if (overline != null) Text(overline, style = Visor.type.label, color = Visor.colors.textSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    if (overline != null) Text(overline, style = Visor.type.label, color = Visor.colors.textSecondary, maxLines = lineLimit(1), overflow = TextOverflow.Ellipsis)
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(title, style = Visor.type.body, color = Visor.colors.textPrimary, modifier = Modifier.weight(1f, fill = false))
                         if (changed) ChangedDot()
@@ -543,7 +550,8 @@ fun VisorSwitch(on: Boolean) {
     Switch(
         checked = on,
         onCheckedChange = null,
-        modifier = Modifier.padding(start = 12.dp),
+        // Its row carries the state for TalkBack (switchRow); the switch itself is only drawn.
+        modifier = Modifier.padding(start = 12.dp).clearAndSetSemantics {},
         colors = SwitchDefaults.colors(
             checkedThumbColor = Color.Black, checkedTrackColor = Color.White, checkedBorderColor = Color.Transparent,
             uncheckedThumbColor = colors.textSecondary, uncheckedTrackColor = colors.control, uncheckedBorderColor = Color.Transparent,
@@ -569,7 +577,7 @@ fun ToggleRow(
     val host = LocalHost.current
     RowFrame(
         title, onClick = { host.haptics.toggle(); onChange(!on) }, onLongClick = onLongClick, locked = locked, changed = changed,
-        busy = busy, overline = overline, sub = sub, keyLine = keyLine, problem = problem, dense = dense,
+        busy = busy, overline = overline, sub = sub, keyLine = keyLine, problem = problem, dense = dense, state = Modifier.switchRow(on),
     ) { VisorSwitch(on) }
 }
 
@@ -716,7 +724,7 @@ fun NavRow(icon: ImageVector?, title: String, summary: String?, onClick: () -> U
         }
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {
             Text(title, style = Visor.type.body, color = colors.textPrimary)
-            if (!summary.isNullOrEmpty()) Text(summary, style = Visor.type.label, color = colors.textSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            if (!summary.isNullOrEmpty()) Text(summary, style = Visor.type.label, color = colors.textSecondary, maxLines = lineLimit(1), overflow = TextOverflow.Ellipsis)
         }
         if (trailing != null) Text(trailing, style = Visor.type.label, color = colors.textSecondary, modifier = Modifier.padding(start = 12.dp))
         Icon(VisorIcons.Chevron, null, Modifier.padding(start = 8.dp).size(16.dp), tint = colors.textTertiary)
@@ -763,7 +771,7 @@ fun VisorSheet(onDismiss: () -> Unit, state: SheetState, content: @Composable Co
 @Composable
 fun SheetTitle(title: String, sub: String? = null) {
     Column(Modifier.padding(horizontal = SIDE).padding(top = 6.dp, bottom = 16.dp)) {
-        Text(title, style = Visor.type.heading, color = Visor.colors.textPrimary)
+        Text(title, style = Visor.type.heading, color = Visor.colors.textPrimary, modifier = Modifier.asHeading())
         if (sub != null) Text(sub, style = Visor.type.body, color = Visor.colors.textSecondary, modifier = Modifier.padding(top = 6.dp))
     }
 }
@@ -790,7 +798,7 @@ fun <T> ChoiceSheet(
             items(shown.size) { i ->
                 val (value, label, detail) = shown[i]
                 Row(
-                    Modifier.fillMaxWidth().clickable {
+                    Modifier.fillMaxWidth().semantics { this.selected = value == selected }.clickable {
                         onPick(value)
                         onDismiss()
                     }.padding(horizontal = SIDE, vertical = 14.dp),

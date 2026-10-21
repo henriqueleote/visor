@@ -102,6 +102,7 @@ import com.macedonga.visor.core.identity.bloks.Paragraph
 import com.macedonga.visor.core.identity.bloks.Screen
 import com.macedonga.visor.gallery.RoundIcon
 import com.macedonga.visor.ui.VisorIcons
+import com.macedonga.visor.ui.asHeading
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.delay
@@ -272,7 +273,7 @@ private fun Content(screen: Screen, s: BloksSession.State, session: BloksSession
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(top = 24.dp)) {
             screen.items.forEach { item ->
                 when (item) {
-                    is Heading -> Text(item.text, style = Visor.type.title, color = Visor.colors.textPrimary, modifier = Modifier.padding(bottom = 12.dp))
+                    is Heading -> Text(item.text, style = Visor.type.title, color = Visor.colors.textPrimary, modifier = Modifier.asHeading().padding(bottom = 12.dp))
                     is Paragraph -> ParagraphText(item, session)
                     is Field -> FieldWell(item, session, index = fields.indexOf(item), depth = s.depth) {
                         primary?.takeIf { it.enabled }?.let { session.run(it.event) }

@@ -29,6 +29,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
@@ -243,7 +245,7 @@ private fun Done(text: String, color: Color, onDismiss: () -> Unit) {
 @Composable
 private fun VoiceRow(voice: GlassesVoice, selected: Boolean, waiting: Boolean, enabled: Boolean, onPick: () -> Unit) {
     Row(
-        Modifier.fillMaxWidth().clickable(enabled = enabled && !selected, onClick = onPick).padding(horizontal = 16.dp, vertical = 13.dp)
+        Modifier.fillMaxWidth().semantics { this.selected = selected }.clickable(enabled = enabled && !selected, onClick = onPick).padding(horizontal = 16.dp, vertical = 13.dp)
             .alpha(if (enabled || selected || waiting) 1f else 0.4f),
         verticalAlignment = Alignment.CenterVertically,
     ) {

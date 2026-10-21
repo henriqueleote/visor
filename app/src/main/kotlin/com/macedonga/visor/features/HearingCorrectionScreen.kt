@@ -84,6 +84,7 @@ import com.macedonga.visor.stage.lookOf
 import com.macedonga.visor.stage.nod
 import com.macedonga.visor.stage.shake
 import com.macedonga.visor.ui.VisorIcons
+import com.macedonga.visor.ui.asHeading
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlin.math.roundToInt
@@ -215,7 +216,7 @@ private fun CorrectionNow(hearing: HearingState, allowed: Boolean, fitted: Boole
             FeatureTile(VisorIcons.HearingAid, lit = run == HearingRun.ON, size = 52)
             Spacer(Modifier.width(16.dp))
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(stringResource(title), style = Visor.type.heading, color = Visor.colors.textPrimary)
+                Text(stringResource(title), style = Visor.type.heading, color = Visor.colors.textPrimary, modifier = Modifier.asHeading())
                 Text(stringResource(sub), style = Visor.type.label, color = if (warn) Visor.colors.signal else Visor.colors.textSecondary)
             }
             if (allowed && restart) {
@@ -574,7 +575,7 @@ private fun LevelDots(level: Int, modifier: Modifier) {
 /** A step's words, as the setup's pages have them, and what moves it on. */
 @Composable
 internal fun StoryWords(title: String, body: String?, action: (@Composable () -> Unit)? = null) {
-    Text(title, style = Visor.type.title, color = Visor.colors.textPrimary)
+    Text(title, style = Visor.type.title, color = Visor.colors.textPrimary, modifier = Modifier.asHeading())
     if (body != null) Text(body, style = Visor.type.body, color = Visor.colors.textSecondary, modifier = Modifier.padding(top = 10.dp))
     if (action != null) Box(Modifier.padding(top = 28.dp)) { action() }
 }

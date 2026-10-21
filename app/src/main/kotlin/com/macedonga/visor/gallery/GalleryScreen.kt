@@ -98,6 +98,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntRect
@@ -112,6 +115,7 @@ import com.macedonga.visor.core.media.Transfer
 import com.macedonga.visor.ui.VisorIcons
 import com.macedonga.visor.ui.rememberHaptics
 import com.macedonga.visor.ui.rememberTrailingFold
+import com.macedonga.visor.ui.asHeading
 import java.io.File
 import kotlin.math.max
 import kotlinx.coroutines.delay
@@ -439,9 +443,9 @@ private fun TopBar(selecting: Boolean, count: Int, favoritesOnly: Boolean, onCle
             Row(verticalAlignment = Alignment.CenterVertically) {
                 if (choosing) {
                     RoundIcon(VisorIcons.Close, stringResource(R.string.gallery_close), onClear)
-                    Text(pluralStringResource(R.plurals.gallery_selected, count, count), style = Visor.type.heading, color = colors.textPrimary)
+                    Text(pluralStringResource(R.plurals.gallery_selected, count, count), style = Visor.type.heading, color = colors.textPrimary, modifier = Modifier.asHeading())
                 } else {
-                    Text(stringResource(R.string.gallery_title), style = Visor.type.title, color = colors.textPrimary, modifier = Modifier.padding(start = 12.dp))
+                    Text(stringResource(R.string.gallery_title), style = Visor.type.title, color = colors.textPrimary, modifier = Modifier.asHeading().padding(start = 12.dp))
                 }
             }
         }
@@ -486,6 +490,7 @@ private fun Stage(
     val colors = Visor.colors
     val density = LocalDensity.current
     val picture by rememberPicture(item, previews, STAGE_PX)
+    val described = item?.let { spoken(it) }
     // The picture's room at rest: from under the bar to above the caption.
     val region = height - strip - PHOTO_TOP - CAPTION - STAGE_FOOT
     val fullPx = with(density) { height.toPx() }
@@ -538,6 +543,7 @@ private fun Stage(
                     .onGloballyPositioned { onBounds(it.boundsInRoot()) }
                     .clip(RoundedCornerShape(PHOTO_RADIUS))
                     .background(colors.raised)
+                    .semantics { described?.let { contentDescription = it } }
                     .clickable(onClick = if (item.onGlassesOnly) onImport else onOpen),
             ) {
                 Crossfade(item.key to picture, label = "stage") { (_, image) ->
@@ -657,7 +663,7 @@ private fun DayHeader(day: Day, first: Boolean, modifier: Modifier) {
     }
     // The first day opens the sheet; the others follow the tiles above them closely.
     Column(modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, top = if (first) 26.dp else 14.dp, bottom = 12.dp)) {
-        Text(dayTitle(day.date), style = Visor.type.heading, color = colors.textPrimary)
+        Text(dayTitle(day.date), style = Visor.type.heading, color = colors.textPrimary, modifier = Modifier.asHeading())
         Text(
             listOfNotNull(
                 place,
@@ -692,12 +698,17 @@ private fun Tile(
     val colors = Visor.colors
     val thumb by rememberThumb(item, previews)
     val inset by animateFloatAsState(if (selected) 0.86f else 1f, spring(dampingRatio = 0.7f, stiffness = 600f), label = "inset")
+    val described = spoken(item)
     DisposableEffect(item.key) { onDispose(onGone) }
     Box(
         modifier
             .aspectRatio(1f)
             .background(colors.raised)
             .onGloballyPositioned { onBounds(it.boundsInRoot()) }
+            .semantics {
+                contentDescription = described
+                if (selecting) this.selected = selected
+            }
             .clickable(onClick = onTap),
     ) {
         Box(
@@ -807,7 +818,7 @@ fun RoundIcon(
     icon: ImageVector,
     description: String?,
     onClick: () -> Unit,
-    size: Dp = 44.dp,
+    size: Dp = 48.dp,
     background: Color = Color.Transparent,
     tint: Color = Visor.colors.textPrimary,
 ) {

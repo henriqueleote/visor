@@ -24,12 +24,15 @@ fun rememberTrailingFold(range: Float, scrolled: () -> Float): State<Float> {
         val history = ArrayDeque<Pair<Long, Float>>()
         var last = 0L
         while (true) {
+            val still = animationsOff()
             withFrameNanos { now ->
                 history.addLast(now to FOLD_CURVE.transform((read.value() / range).coerceIn(0f, 1f)))
                 while (history.size > 1 && history[1].first <= now - FOLD_DELAY_NS) history.removeFirst()
                 val dt = if (last == 0L) 0f else ((now - last) / 1e9f).coerceAtMost(0.05f)
                 last = now
-                fold.floatValue += (history.first().second - fold.floatValue) * (1f - exp(-dt / FOLD_EASE_S))
+                // With animations off the stage follows the page as it is, with no trail.
+                fold.floatValue = if (still) history.last().second
+                else fold.floatValue + (history.first().second - fold.floatValue) * (1f - exp(-dt / FOLD_EASE_S))
             }
         }
     }

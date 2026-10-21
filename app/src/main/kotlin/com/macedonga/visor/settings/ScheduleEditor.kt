@@ -49,6 +49,7 @@ import com.macedonga.visor.core.settings.Kind
 import com.macedonga.visor.core.settings.SettingSpec
 import com.macedonga.visor.ui.Line
 import com.macedonga.visor.ui.Section
+import com.macedonga.visor.ui.asHeading
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -337,7 +338,7 @@ internal fun FullDialog(title: String, onDismiss: () -> Unit, canSave: Boolean, 
                 .padding(horizontal = 20.dp, vertical = 16.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            Text(title, style = Visor.type.title, color = Visor.colors.textPrimary)
+            Text(title, style = Visor.type.title, color = Visor.colors.textPrimary, modifier = Modifier.asHeading())
             content()
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 12.dp)) {
                 OutlinedButton(onClick = onDismiss) { Text("Cancel") }

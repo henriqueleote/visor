@@ -63,6 +63,7 @@ import com.macedonga.visor.settings.Topic
 import com.macedonga.visor.settings.VisorSheet
 import com.macedonga.visor.settings.VisorSwitch
 import com.macedonga.visor.ui.VisorIcons
+import com.macedonga.visor.ui.switchRow
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 
@@ -220,6 +221,7 @@ private fun FeatureRow(
         Modifier
             .fillMaxWidth()
             .combinedClickable(onClick = tap, onLongClick = { host.haptics.tick(0.5f); details() })
+            .then(if (feature.page) Modifier else Modifier.switchRow(on))
             .heightIn(min = 72.dp)
             .padding(horizontal = 16.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically,

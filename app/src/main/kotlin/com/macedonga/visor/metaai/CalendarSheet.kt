@@ -100,7 +100,7 @@ internal fun CalendarSheet(
                     )
                     if (query.isEmpty()) Text(stringResource(R.string.meta_ai_search), style = Visor.type.body, color = colors.textSecondary)
                 }
-                if (query.isNotEmpty()) RoundIcon(VisorIcons.Close, null, { query = "" }, size = 36.dp, tint = colors.textSecondary)
+                if (query.isNotEmpty()) RoundIcon(VisorIcons.Close, stringResource(R.string.settings_clear), { query = "" }, size = 48.dp, tint = colors.textSecondary)
             }
             Crossfade(query.isBlank(), label = "calendar") { browsing ->
                 if (browsing) Month(turns, shownDay, onDay) else Results(turns, query.trim(), onTurn)

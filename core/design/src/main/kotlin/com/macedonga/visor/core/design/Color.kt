@@ -17,8 +17,8 @@ data class VisorColors(
     val control: Color = Color(0xFF333336),
     val hairline: Color = Color(0x14FFFFFF),
     val textPrimary: Color = Color(0xFFFFFFFF),
-    val textSecondary: Color = Color(0xFF86868B),
-    val textTertiary: Color = Color(0xFF48484A),
+    val textSecondary: Color = Color(0xFF98989D),
+    val textTertiary: Color = Color(0xFF86868B),
     val signal: Color = Color(0xFFFF5F34),
     /** The glasses' light, from the colour of a searching lamp to the cold rim of glasses far away. */
     val lightWarm: Color = Color(0xFFFFD2A1),

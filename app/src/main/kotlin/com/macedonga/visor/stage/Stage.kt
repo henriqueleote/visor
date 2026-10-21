@@ -32,7 +32,7 @@ internal fun GlassesStage(liveliness: Float, active: Boolean, modifier: Modifier
     val renderer = stage.renderer
     LaunchedEffect(renderer) { snapshotFlow { light.tick.longValue }.collect { renderer.invalidate() } }
     // The tilt sensor listens only while the pair is on screen.
-    if (active) Tilt(pose, renderer)
+    if (active) Tilt(light, pose, renderer)
     Drift(light, pose, liveliness, renderer)
     Box(modifier) {
         AndroidView(factory = { TextureView(it).also(renderer::attach) }, onRelease = { renderer.detach(it) })
@@ -68,7 +68,7 @@ private fun wave(t: Float, periodSeconds: Float, phase: Float = 0f) = sin(2 * PI
  * way of holding the phone becomes level after a few seconds. Listens only while the screen is started.
  */
 @Composable
-private fun Tilt(pose: GlassesPose, renderer: GlassesRenderer) {
+private fun Tilt(light: LightFrame, pose: GlassesPose, renderer: GlassesRenderer) {
     val context = LocalContext.current
     LifecycleStartEffect(pose) {
         val sensors = context.getSystemService(SensorManager::class.java)
@@ -96,10 +96,12 @@ private fun Tilt(pose: GlassesPose, renderer: GlassesRenderer) {
                 val ease = 1f - exp(-dt / EASE_SECONDS)
                 side += ((sideNow - restSide).coerceIn(-MAX_TILT, MAX_TILT) - side) * ease
                 forward += ((forwardNow - restForward).coerceIn(-MAX_TILT, MAX_TILT) - forward) * ease
-                pose.tiltYawDegrees = -side * 0.55f
-                pose.tiltPitchDegrees = forward * 0.3f
-                pose.shiftX = -side * 0.00028f
-                pose.shiftY = forward * 0.00012f
+                // With animations off the pair stays put, whatever the phone does.
+                val moved = if (light.still) 0f else 1f
+                pose.tiltYawDegrees = -side * 0.55f * moved
+                pose.tiltPitchDegrees = forward * 0.3f * moved
+                pose.shiftX = -side * 0.00028f * moved
+                pose.shiftY = forward * 0.00012f * moved
                 renderer.invalidate()
             }
 

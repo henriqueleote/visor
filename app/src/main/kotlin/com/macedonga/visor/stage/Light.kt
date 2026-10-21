@@ -10,6 +10,7 @@ import androidx.compose.ui.graphics.lerp
 import com.macedonga.visor.core.connection.GlassesState
 import com.macedonga.visor.core.design.VisorColors
 import com.macedonga.visor.core.session.LinkState
+import com.macedonga.visor.ui.animationsOff
 import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.exp
@@ -106,6 +107,8 @@ class LightFrame {
     var flash = 0f
     /** A word spoken: a short swell of the level, without the flash's white. */
     var swell = 0f
+    /** The phone's "Remove animations": each mood comes at once and holds, without breath, drift or flashes. */
+    var still = false
     val tick = mutableLongStateOf(0L)
 
     private var target = LightLook(Color.Black, Color.Black, 0f, 0.7f)
@@ -140,16 +143,17 @@ class LightFrame {
     }
 
     fun step(dt: Float) {
-        val k = 1f - exp(-dt / EASE_SECONDS)
+        val k = if (still) 1f else 1f - exp(-dt / EASE_SECONDS)
         pace += (target.pace - pace) * k
-        time += dt * pace
-        val breath = if (target.breathSeconds > 0f) {
+        if (!still) time += dt * pace
+        val breath = if (target.breathSeconds > 0f && !still) {
             phase = (phase + dt / target.breathSeconds) % 1f
             // Rises quickly, sinks slowly, like a held breath.
             val s = (sin(2 * PI * phase - PI / 2).toFloat() + 1f) / 2f
             1f - target.breathDepth * (1f - s * s)
         } else 1f
         var aimLevel = target.level * breath
+        if (still) flickerLeft = 0f
         if (flickerLeft > 0f) {
             flickerLeft = (flickerLeft - dt).coerceAtLeast(0f)
             val t = FLICKER_SECONDS - flickerLeft
@@ -160,8 +164,8 @@ class LightFrame {
         warp += (target.warp - warp) * k
         approach(core, target.core, k)
         approach(rim, target.rim, k)
-        flash = (flash - dt / FLASH_SECONDS).coerceAtLeast(0f)
-        swell = (swell - dt / SWELL_SECONDS).coerceAtLeast(0f)
+        flash = if (still) 0f else (flash - dt / FLASH_SECONDS).coerceAtLeast(0f)
+        swell = if (still) 0f else (swell - dt / SWELL_SECONDS).coerceAtLeast(0f)
         tick.longValue++
     }
 
@@ -186,6 +190,7 @@ fun AnimateLight(frame: LightFrame, look: LightLook) {
     LaunchedEffect(frame) {
         var last = 0L
         while (true) {
+            frame.still = animationsOff()
             withFrameNanos { now ->
                 frame.aim(current.value)
                 val dt = if (last == 0L) 0f else ((now - last) / 1e9f).coerceAtMost(0.05f)

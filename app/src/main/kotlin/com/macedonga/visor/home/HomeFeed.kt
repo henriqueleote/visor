@@ -30,8 +30,9 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicText
+import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -65,6 +66,7 @@ import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import com.macedonga.visor.R
 import com.macedonga.visor.core.identity.language.GlassesLook
@@ -200,13 +202,13 @@ fun StatusPill(
             if (glasses != null) Spacer(Modifier.size(12.dp))
         }
         if (glasses != null) {
-            Row(Modifier.graphicsLayer { alpha = if (here) 1f else 0.45f }, verticalAlignment = Alignment.CenterVertically) {
-                Level(VisorIcons.Glasses, glasses, critical = here && glasses <= 10 && !charging)
-                if (charging) Icon(VisorIcons.Bolt, null, Modifier.padding(start = 2.dp).size(13.dp), tint = colors.textPrimary)
+            Row(Modifier.graphicsLayer { alpha = if (here) 1f else 0.6f }, verticalAlignment = Alignment.CenterVertically) {
+                Level(VisorIcons.Glasses, stringResource(R.string.glasses_battery), glasses, critical = here && glasses <= 10 && !charging)
+                if (charging) Icon(VisorIcons.Bolt, stringResource(R.string.mood_charging), Modifier.padding(start = 2.dp).size(13.dp), tint = colors.textPrimary)
                 if (case != null) {
                     Spacer(Modifier.size(14.dp))
-                    Level(VisorIcons.Case, case, critical = false)
-                    if (caseCharging) Icon(VisorIcons.Bolt, null, Modifier.padding(start = 2.dp).size(13.dp), tint = colors.textPrimary)
+                    Level(VisorIcons.Case, stringResource(R.string.glasses_case_label), case, critical = false)
+                    if (caseCharging) Icon(VisorIcons.Bolt, stringResource(R.string.mood_charging), Modifier.padding(start = 2.dp).size(13.dp), tint = colors.textPrimary)
                 }
                 if (band != null) {
                     Spacer(Modifier.size(14.dp))
@@ -349,10 +351,10 @@ private fun shortAgo(at: Long): String {
 
 /** An icon and a percentage that counts to its value rather than jumping. */
 @Composable
-private fun Level(icon: ImageVector, percent: Int, critical: Boolean) {
+private fun Level(icon: ImageVector, label: String, percent: Int, critical: Boolean) {
     val shown by animateFloatAsState(percent.toFloat(), tween(900, easing = RISE), label = "level")
     val color = if (critical) Visor.colors.signal else Visor.colors.textPrimary
-    Icon(icon, null, Modifier.size(17.dp), tint = color)
+    Icon(icon, label, Modifier.size(17.dp), tint = color)
     Spacer(Modifier.size(6.dp))
     Text("${shown.toInt()}%", style = Visor.type.label, color = color)
 }
@@ -594,12 +596,18 @@ private fun Fact(label: String, value: String, dim: Boolean, modifier: Modifier)
         modifier
             .clip(RoundedCornerShape(CARD_RADIUS))
             .background(Visor.colors.raised)
-            .padding(18.dp)
-            .graphicsLayer { alpha = if (dim) 0.55f else 1f },
+            .padding(18.dp),
     ) {
         Text(label, style = Visor.type.label, color = Visor.colors.textSecondary)
         Spacer(Modifier.height(10.dp))
-        Text(value, style = Visor.type.readoutSmall, color = Visor.colors.textPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        // A large font shrinks the number to fit rather than cutting it short.
+        BasicText(
+            value,
+            // Away, only the number dims: enough to read as old, still 4.5:1 on the card.
+            style = Visor.type.readoutSmall.copy(color = Visor.colors.textPrimary.copy(alpha = if (dim) 0.6f else 1f)),
+            maxLines = 1,
+            autoSize = TextAutoSize.StepBased(minFontSize = 12.sp, maxFontSize = Visor.type.readoutSmall.fontSize, stepSize = 1.sp),
+        )
     }
 }
 

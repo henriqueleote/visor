@@ -33,6 +33,7 @@ import com.macedonga.visor.core.design.Visor
 import com.macedonga.visor.settings.SIDE
 import com.macedonga.visor.settings.VisorSheet
 import com.macedonga.visor.ui.VisorIcons
+import com.macedonga.visor.ui.asHeading
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -99,10 +100,10 @@ fun StarSheet(onOk: () -> Unit, onNo: () -> Unit, onNever: () -> Unit) {
             Box(Modifier.size(132.dp), contentAlignment = Alignment.Center) {
                 Box(Modifier.size(132.dp).background(Brush.radialGradient(listOf(colors.lightWarm.copy(alpha = 0.22f), Color.Transparent))))
                 Box(Modifier.size(68.dp).clip(RoundedCornerShape(22.dp)).background(colors.raised), contentAlignment = Alignment.Center) {
-                    Icon(VisorIcons.Star, null,Modifier.size(32.dp), tint = colors.lightWarm)
+                    Icon(VisorIcons.Star, null, Modifier.size(32.dp), tint = colors.lightWarm)
                 }
             }
-            Text(stringResource(R.string.star_title), style = Visor.type.title, color = colors.textPrimary, textAlign = TextAlign.Center)
+            Text(stringResource(R.string.star_title), style = Visor.type.title, color = colors.textPrimary, textAlign = TextAlign.Center, modifier = Modifier.asHeading())
             Text(
                 stringResource(R.string.star_text), style = Visor.type.body, color = colors.textSecondary, textAlign = TextAlign.Center,
                 modifier = Modifier.padding(top = 8.dp, bottom = 28.dp),

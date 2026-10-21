@@ -75,6 +75,7 @@ import com.macedonga.visor.core.assistant.mcp.SignIn
 import com.macedonga.visor.core.assistant.mcp.Transport
 import com.macedonga.visor.core.design.Visor
 import com.macedonga.visor.ui.VisorIcons
+import com.macedonga.visor.ui.lineLimit
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.launch
@@ -119,12 +120,12 @@ private fun ServerRow(server: McpServer, status: McpStatus?, onClick: () -> Unit
         ServerMark(server, status, 40, onCard = true)
         Spacer(Modifier.width(14.dp))
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {
-            Text(server.name, style = Visor.type.body, color = colors.textPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(server.name, style = Visor.type.body, color = colors.textPrimary, maxLines = lineLimit(1), overflow = TextOverflow.Ellipsis)
             Text(
                 statusLine(server, status),
                 style = Visor.type.label,
                 color = if (problem) colors.signal else colors.textSecondary,
-                maxLines = 1,
+                maxLines = lineLimit(1),
                 overflow = TextOverflow.Ellipsis,
             )
         }

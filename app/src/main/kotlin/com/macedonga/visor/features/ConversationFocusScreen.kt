@@ -39,6 +39,7 @@ import com.macedonga.visor.settings.ToggleRow
 import com.macedonga.visor.settings.row
 import com.macedonga.visor.settings.specOf
 import com.macedonga.visor.ui.VisorIcons
+import com.macedonga.visor.ui.asHeading
 import kotlin.math.roundToInt
 
 /**
@@ -166,7 +167,7 @@ private fun FocusNow(hearing: HearingState, allowed: Boolean, model: FeaturesMod
             FeatureTile(VisorIcons.Ear, lit = run == HearingRun.ON, size = 52)
             Spacer(Modifier.width(16.dp))
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(stringResource(title), style = Visor.type.heading, color = Visor.colors.textPrimary)
+                Text(stringResource(title), style = Visor.type.heading, color = Visor.colors.textPrimary, modifier = Modifier.asHeading())
                 Text(sub, style = Visor.type.label, color = if (refusal != null && allowed) Visor.colors.signal else Visor.colors.textSecondary)
             }
             Spacer(Modifier.width(12.dp))

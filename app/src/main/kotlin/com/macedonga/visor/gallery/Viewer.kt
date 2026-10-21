@@ -73,6 +73,7 @@ import com.macedonga.visor.R
 import com.macedonga.visor.core.design.Visor
 import com.macedonga.visor.core.media.CaptureType
 import com.macedonga.visor.ui.VisorIcons
+import com.macedonga.visor.ui.asHeading
 import java.io.File
 import kotlin.math.max
 import kotlin.math.roundToInt
@@ -407,7 +408,7 @@ private fun Page(
                 }
             }
             picture?.let {
-                Image(it, null, Modifier.fillMaxSize().graphicsLayer { alpha = stillAlpha }, contentScale = ContentScale.Crop)
+                Image(it, spoken(item), Modifier.fillMaxSize().graphicsLayer { alpha = stillAlpha }, contentScale = ContentScale.Crop)
             }
             if (item.onGlassesOnly) {
                 Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.4f)))
@@ -426,7 +427,7 @@ private fun TopChrome(item: GalleryItem, modifier: Modifier, onClose: () -> Unit
     Row(modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = 8.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
         RoundIcon(VisorIcons.ChevronDown, stringResource(R.string.gallery_close), onClose, size = 48.dp)
         Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(dayTitle(item.date), style = Visor.type.heading, color = colors.textPrimary)
+            Text(dayTitle(item.date), style = Visor.type.heading, color = colors.textPrimary, modifier = Modifier.asHeading())
             Text(clockTime(item.takenAt) + " · " + kindWord(item.type), style = Visor.type.label, color = colors.textSecondary)
         }
         Spacer(Modifier.width(48.dp))

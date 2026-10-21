@@ -103,8 +103,13 @@ class StageHolder(private val context: Context, markAtLaunch: Boolean) {
     /** The pair is on its way from one screen's place to another's. */
     internal val travelling: Boolean get() = handover.floatValue < 1f
 
-    internal fun step(frameNanos: Long) {
+    /** [still]: the phone's "Remove animations", and the pair lands at once. */
+    internal fun step(frameNanos: Long, still: Boolean = false) {
         if (handover.floatValue >= 1f) return
+        if (still) {
+            handover.floatValue = 1f
+            return
+        }
         if (!started) {
             started = true
             startedAt = frameNanos

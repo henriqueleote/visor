@@ -52,6 +52,7 @@ import com.macedonga.visor.core.design.Visor
 import com.macedonga.visor.gallery.RoundIcon
 import com.macedonga.visor.gallery.dayTitle
 import com.macedonga.visor.ui.VisorIcons
+import com.macedonga.visor.ui.asHeading
 import com.macedonga.visor.ui.rememberHaptics
 import java.time.Instant
 import java.time.ZoneId
@@ -76,7 +77,7 @@ fun MemoriesScreen(model: MetaAiModel = hiltViewModel()) {
         LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 140.dp)) {
             item(key = "head") {
                 Column(Modifier.statusBarsPadding().padding(horizontal = SIDE).padding(top = 20.dp, bottom = 20.dp)) {
-                    Text(stringResource(R.string.meta_ai_memories), style = Visor.type.title, color = colors.textPrimary)
+                    Text(stringResource(R.string.meta_ai_memories), style = Visor.type.title, color = colors.textPrimary, modifier = Modifier.asHeading())
                     Text(stringResource(R.string.memories_sub), style = Visor.type.body, color = colors.textSecondary, modifier = Modifier.padding(top = 8.dp))
                 }
             }

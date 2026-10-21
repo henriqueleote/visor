@@ -53,6 +53,16 @@ fun kindWord(type: CaptureType): String = when (type) {
 @ReadOnlyComposable
 fun caption(item: GalleryItem): String = dayTitle(item.date) + ", " + clockTime(item.takenAt) + " · " + kindWord(item.type)
 
+/** What TalkBack reads for an item: "Live photo, Today, 00:09, Favourite, On the glasses". */
+@Composable
+@ReadOnlyComposable
+fun spoken(item: GalleryItem): String = listOfNotNull(
+    kindWord(item.type),
+    dayTitle(item.date) + ", " + clockTime(item.takenAt),
+    stringResource(R.string.gallery_favorite).takeIf { item.favorite },
+    stringResource(R.string.gallery_on_glasses).takeIf { item.onGlassesOnly },
+).joinToString(", ")
+
 /** 0:12, 4:05, 1:02:03. */
 fun duration(ms: Long): String {
     val s = ms / 1000

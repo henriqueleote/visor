@@ -10,13 +10,21 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.pm.ServiceInfo
+import android.os.Build
 import android.os.IBinder
+import android.view.View
+import android.widget.RemoteViews
+import androidx.annotation.RequiresApi
 import com.macedonga.visor.MainActivity
 import com.macedonga.visor.R
 import com.macedonga.visor.core.assistant.Assistant
 import com.macedonga.visor.core.connection.GlassesConnection
 import com.macedonga.visor.core.connection.GlassesLink
 import com.macedonga.visor.core.connection.GlassesTarget
+import com.macedonga.visor.core.connection.GlassesState
+import com.macedonga.visor.core.identity.Diagnosis
+import com.macedonga.visor.home.moodWords
+import com.macedonga.visor.outside.Glimpse
 import dagger.hilt.android.AndroidEntryPoint
 import com.macedonga.visor.notify.PhoneContacts
 import javax.inject.Inject
@@ -112,7 +120,7 @@ class GlassesService : Service() {
 
         startForeground(
             NOTIFICATION_ID,
-            notification(getString(R.string.connection_reaching)),
+            notification(Status(getString(R.string.connection_reaching), null, false, null, null)),
             ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE,
         )
 
@@ -130,9 +138,15 @@ class GlassesService : Service() {
             developer.keep(scope)
             com.macedonga.visor.settings.keepCameraInLine(scope, glassesSettings, assistantConfig, log)
             notifications = scope.launch {
-                combine(connection.state, liveNow()) { state, now -> state to now }.collect { (state, now) ->
-                    getSystemService(NotificationManager::class.java)
-                        .notify(NOTIFICATION_ID, if (now != null) liveNotification(now) else notification(getString(connectionWords(state))))
+                var shown: Any? = null
+                combine(connection.state, liveNow(), outside.glimpse, ::Triple).collect { (state, now, glimpse) ->
+                    // The state changes every few seconds; the notification only when what it says does.
+                    val shows: Any = now ?: status(state, glimpse)
+                    if (shows != shown) {
+                        shown = shows
+                        getSystemService(NotificationManager::class.java)
+                            .notify(NOTIFICATION_ID, if (shows is Status) notification(shows) else liveNotification(shows as LiveNow))
+                    }
                     // target == null alone is also the state before the store read finishes, so
                     // checking it without reason would stop the service on every launch before
                     // GlassesConnection.start ever gets to read the store.
@@ -261,10 +275,33 @@ class GlassesService : Service() {
         return GlassesTarget(GlassesLink.Bluetooth(address), serial)
     }
 
-    private fun notification(text: String): Notification =
+    /**
+     * What the connection notification says: the home's word for the pair, and their battery and the case's. [text] is
+     * the same in words, for TalkBack and plain notifications.
+     */
+    private data class Status(val title: String, val glasses: Int?, val charging: Boolean, val case: Int?, val text: String?)
+
+    private fun status(state: GlassesState, glimpse: Glimpse): Status {
+        val title = getString(if (state.diagnosis == Diagnosis.EVICTED) R.string.connection_key_refused else moodWords(glimpse.mood))
+        val batteries = listOfNotNull(
+            glimpse.glasses?.let { getString(if (glimpse.charging) R.string.notify_glasses_charging else R.string.notify_glasses, it) },
+            glimpse.case?.let { getString(R.string.widget_case, it) },
+        ).joinToString(" · ").ifEmpty { null }
+        val text = batteries ?: getString(connectionWords(state)).takeIf { it != title }
+        return Status(title, glimpse.glasses, glimpse.charging, glimpse.case, text)
+    }
+
+    private fun notification(status: Status): Notification =
         Notification.Builder(this, CHANNEL_ID)
-            .setContentTitle(getString(R.string.app_name))
-            .setContentText(text)
+            .setContentTitle(status.title)
+            .setContentText(status.text)
+            .setShowWhen(false)
+            .apply {
+                if (Build.VERSION.SDK_INT >= 31) {
+                    style = Notification.DecoratedCustomViewStyle()
+                    setCustomContentView(statusViews(status))
+                }
+            }
             .setSmallIcon(R.drawable.ic_stat_visor)
             .setOngoing(true)
             .setContentIntent(
@@ -276,6 +313,33 @@ class GlassesService : Service() {
                 ),
             )
             .build()
+
+    /** The widget's look in the shade: icons and numbers, tinted with the shade's own text colour. */
+    @RequiresApi(31)
+    private fun statusViews(status: Status): RemoteViews {
+        val v = RemoteViews(packageName, R.layout.notification_glasses)
+        v.setTextViewText(R.id.title, status.title)
+        val numbers = status.glasses != null || status.case != null
+        v.setViewVisibility(R.id.readouts, if (numbers) View.VISIBLE else View.GONE)
+        if (numbers) {
+            v.setContentDescription(R.id.readouts, status.text)
+            for (icon in listOf(R.id.glasses_icon, R.id.bolt, R.id.case_icon)) {
+                v.setColorStateListAttr(icon, "setImageTintList", android.R.attr.textColorSecondary)
+            }
+            val glasses = if (status.glasses != null) View.VISIBLE else View.GONE
+            v.setViewVisibility(R.id.glasses_icon, glasses)
+            v.setViewVisibility(R.id.glasses, glasses)
+            status.glasses?.let { v.setTextViewText(R.id.glasses, "$it%") }
+            v.setViewVisibility(R.id.bolt, if (status.charging && status.glasses != null) View.VISIBLE else View.GONE)
+            val case = if (status.case != null) View.VISIBLE else View.GONE
+            v.setViewVisibility(R.id.case_icon, case)
+            v.setViewVisibility(R.id.case_level, case)
+            status.case?.let { v.setTextViewText(R.id.case_level, "$it%") }
+        }
+        v.setViewVisibility(R.id.text, if (!numbers && status.text != null) View.VISIBLE else View.GONE)
+        status.text?.let { v.setTextViewText(R.id.text, it) }
+        return v
+    }
 
     companion object {
         private const val MOVE_EVERY_MS = 60_000L

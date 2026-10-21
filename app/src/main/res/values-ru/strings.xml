@@ -66,6 +66,8 @@
     <string name="fact_free">Свободное место</string>
     <string name="fact_volume">Громкость</string>
     <string name="fact_temperature">Температура</string>
+    <string name="live_battery">Батарея</string>
+    <string name="onboard_allowed">Разрешено</string>
     <string name="fact_last_capture">Последний снимок</string>
     <string name="shutter_take_photo">Сделать фото</string>
     <string name="shutter_record_video">Снять видео</string>
@@ -696,6 +698,8 @@
     <string name="widget_name">Очки</string>
     <string name="widget_description">Заряд очков и футляра, их состояние и ваш последний снимок.</string>
     <string name="widget_case">Футляр %1$d%%</string>
+    <string name="notify_glasses">Очки %1$d%%</string>
+    <string name="notify_glasses_charging">Очки %1$d%%, заряжаются</string>
     <string name="widget_no_moment">Пока нет фото</string>
     <string name="widget_sample_case">Футляр 64%</string>
     <string name="tile_subtitle">%1$s · %2$d%%</string>

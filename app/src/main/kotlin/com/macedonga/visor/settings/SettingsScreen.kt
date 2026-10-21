@@ -146,6 +146,8 @@ import com.macedonga.visor.stage.sheetShape
 import com.macedonga.visor.stage.turnsThePair
 import com.macedonga.visor.ui.VisorIcons
 import com.macedonga.visor.ui.rememberTrailingFold
+import com.macedonga.visor.ui.asHeading
+import com.macedonga.visor.ui.lineLimit
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.time.Instant
 import java.time.ZoneId
@@ -305,7 +307,7 @@ fun SettingsScreen(open: (NavKey) -> Unit, model: SettingsViewModel = hiltViewMo
             verticalAlignment = Alignment.CenterVertically,
         ) {
             RoundIcon(VisorIcons.ChevronLeft, stringResource(R.string.settings_back), LocalBack.current)
-            Text(stringResource(R.string.settings_title), style = Visor.type.title, color = colors.textPrimary, modifier = Modifier.padding(start = 4.dp))
+            Text(stringResource(R.string.settings_title), style = Visor.type.title, color = colors.textPrimary, modifier = Modifier.asHeading().padding(start = 4.dp))
         }
     }
 }
@@ -340,7 +342,8 @@ private fun Tiles(model: SettingsViewModel, open: (NavKey) -> Unit) {
     BoxWithConstraints(Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
         val gap = 10.dp
         val cellW = (maxWidth - gap * (COLUMNS - 1)) / COLUMNS
-        val cellH = cellW * 0.86f
+        // A large font gets taller tiles, so a tile's name and state still fit.
+        val cellH = cellW * 0.86f * LocalDensity.current.fontScale.coerceIn(1f, 1.8f)
         val density = LocalDensity.current
         val stepX = with(density) { (cellW + gap).toPx() }
         val stepY = with(density) { (cellH + gap).toPx() }
@@ -526,8 +529,8 @@ private fun Tile(id: String, model: SettingsViewModel, open: (NavKey) -> Unit, o
             if (busy) ProgressRing(null, Modifier.size(16.dp), color = ink)
         }
         Column {
-            Text(title, style = Visor.type.label, color = ink, maxLines = 2, overflow = TextOverflow.Ellipsis)
-            Text(state, style = Visor.type.label, color = if (lit) Color.Black.copy(alpha = 0.55f) else Visor.colors.textSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(title, style = Visor.type.label, color = ink, maxLines = lineLimit(2), overflow = TextOverflow.Ellipsis)
+            Text(state, style = Visor.type.label, color = if (lit) Color.Black.copy(alpha = 0.55f) else Visor.colors.textSecondary, maxLines = lineLimit(1), overflow = TextOverflow.Ellipsis)
         }
     }
 }

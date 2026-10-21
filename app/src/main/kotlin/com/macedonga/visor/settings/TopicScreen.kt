@@ -21,6 +21,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.LifecycleResumeEffect
@@ -180,6 +182,7 @@ fun <T> OptionCards(options: List<Triple<T, String, String>>, selected: T, onPic
             Row(
                 Modifier
                     .fillMaxWidth()
+                    .semantics { this.selected = on }
                     .clickable {
                         if (!on) {
                             host.haptics.toggle()

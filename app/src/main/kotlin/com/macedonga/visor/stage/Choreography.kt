@@ -53,7 +53,7 @@ fun Choreography(state: GlassesState, mood: Mood, light: LightFrame, pose: Glass
     LaunchedEffect(light, ledOn, mood) {
         snapshotFlow { light.tick.longValue }.collect {
             pose.led = when {
-                mood == Mood.RECORDING -> 0.55f + 0.45f * sin(2 * PI * light.time).toFloat()
+                mood == Mood.RECORDING -> if (light.still) 1f else 0.55f + 0.45f * sin(2 * PI * light.time).toFloat()
                 ledOn -> 1f
                 else -> 0f
             }

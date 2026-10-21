@@ -60,6 +60,7 @@ import com.macedonga.visor.gallery.PhotoLight
 import com.macedonga.visor.gallery.clockTime
 import com.macedonga.visor.gallery.dayTitle
 import com.macedonga.visor.ui.VisorIcons
+import com.macedonga.visor.ui.asHeading
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import kotlin.math.ceil
@@ -97,7 +98,7 @@ internal fun DayHead(day: DiaryDay, first: Boolean, onCalendar: () -> Unit, onPh
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Column(Modifier.weight(1f)) {
-                Text(dayTitle(day.date), style = Visor.type.heading, color = colors.textPrimary)
+                Text(dayTitle(day.date), style = Visor.type.heading, color = colors.textPrimary, modifier = Modifier.asHeading())
                 Text(sub, style = Visor.type.label, color = colors.textSecondary, modifier = Modifier.padding(top = 2.dp))
             }
             Icon(VisorIcons.ChevronDown, stringResource(R.string.meta_ai_pick_day), Modifier.size(18.dp), tint = colors.textTertiary)
@@ -127,7 +128,7 @@ private fun PhotoStack(photos: List<TurnRecord>, onPhoto: (String) -> Unit, modi
                     .background(Visor.colors.raised)
                     .clickable { onPhoto(turn.interactionId) },
             ) {
-                image?.let { Image(it, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop) }
+                image?.let { Image(it, stringResource(R.string.gallery_photo), Modifier.fillMaxSize(), contentScale = ContentScale.Crop) }
             }
         }
     }

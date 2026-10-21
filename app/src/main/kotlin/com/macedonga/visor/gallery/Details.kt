@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -53,6 +54,7 @@ import com.macedonga.visor.R
 import com.macedonga.visor.core.design.Visor
 import com.macedonga.visor.core.media.CaptureType
 import com.macedonga.visor.ui.VisorIcons
+import com.macedonga.visor.ui.asHeading
 import java.io.File
 import java.time.Instant
 import java.time.ZoneId
@@ -107,7 +109,7 @@ fun Details(item: GalleryItem, originals: File?, modifier: Modifier) {
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
             val at = Instant.ofEpochMilli(item.takenAt).atZone(ZoneId.systemDefault())
-            Text(DateTimeFormatter.ofLocalizedDate(FormatStyle.FULL).withLocale(locale).format(at).replaceFirstChar { it.titlecase(locale) }, style = Visor.type.heading, color = colors.textPrimary)
+            Text(DateTimeFormatter.ofLocalizedDate(FormatStyle.FULL).withLocale(locale).format(at).replaceFirstChar { it.titlecase(locale) }, style = Visor.type.heading, color = colors.textPrimary, modifier = Modifier.asHeading())
             Text(DateTimeFormatter.ofLocalizedTime(FormatStyle.MEDIUM).withLocale(locale).format(at) + " · " + kindWord(item.type), style = Visor.type.label, color = colors.textSecondary)
             val lat = item.kept?.lat
             val lon = item.kept?.lon
@@ -115,7 +117,7 @@ fun Details(item: GalleryItem, originals: File?, modifier: Modifier) {
                 Row(
                     Modifier.padding(top = 8.dp).clip(RoundedCornerShape(50)).clickable {
                         runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("geo:$lat,$lon?q=$lat,$lon"))) }
-                    }.padding(vertical = 4.dp),
+                    }.heightIn(min = 48.dp).padding(vertical = 4.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     val name by produceState(PlaceNames.cached(lat, lon), lat, lon) { if (value == null) value = PlaceNames.of(context, lat, lon) }

@@ -34,7 +34,7 @@ fun PlainScreen(title: String, content: @Composable ColumnScope.() -> Unit) {
             .padding(horizontal = 20.dp, vertical = 16.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        Text(title, style = Visor.type.title, color = Visor.colors.textPrimary)
+        Text(title, style = Visor.type.title, color = Visor.colors.textPrimary, modifier = Modifier.asHeading())
         content()
     }
 }

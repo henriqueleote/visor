@@ -35,6 +35,7 @@ import com.macedonga.visor.core.design.Visor
 import com.macedonga.visor.core.settings.Control
 import com.macedonga.visor.core.settings.localeOf
 import com.macedonga.visor.core.settings.localeValue
+import com.macedonga.visor.ui.lineLimit
 import java.util.Locale
 
 /** The phone's own values, for the settings the Meta app fills in from the phone it runs on. */
@@ -135,7 +136,7 @@ private fun PickerRow(
     var picking by remember { mutableStateOf(false) }
     Row(verticalAlignment = Alignment.CenterVertically) {
         labels(Modifier.weight(1f), null)
-        OutlinedButton(enabled = enabled, onClick = { picking = true }) { Text(shown, maxLines = 1) }
+        OutlinedButton(enabled = enabled, onClick = { picking = true }) { Text(shown, maxLines = lineLimit(1)) }
     }
     if (!picking) return
     var query by remember { mutableStateOf("") }

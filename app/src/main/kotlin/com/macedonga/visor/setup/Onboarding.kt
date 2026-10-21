@@ -110,6 +110,7 @@ import com.macedonga.visor.stage.lookOf
 import com.macedonga.visor.stage.nod
 import com.macedonga.visor.stage.shake
 import com.macedonga.visor.ui.VisorIcons
+import com.macedonga.visor.ui.asHeading
 import com.macedonga.visor.ui.rememberHaptics
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -486,7 +487,7 @@ private fun WelcomePage(firstRun: Boolean, modifier: Modifier, before: suspend (
     }
     Column(modifier, verticalArrangement = Arrangement.Bottom) {
         Column(Modifier.graphicsLayer { alpha = rise.value; translationY = (1f - rise.value) * 28.dp.toPx() }) {
-            Text(stringResource(R.string.app_name), style = Visor.type.display, color = Visor.colors.textPrimary)
+            Text(stringResource(R.string.app_name), style = Visor.type.display, color = Visor.colors.textPrimary, modifier = Modifier.asHeading())
             Text(stringResource(R.string.onboard_tagline), style = Visor.type.body, color = Visor.colors.textSecondary, modifier = Modifier.padding(top = 10.dp))
             Spacer(Modifier.height(36.dp))
             BigPill(stringResource(R.string.onboard_begin), onBegin)
@@ -519,7 +520,7 @@ private fun AccessPage(model: OnboardingViewModel, tick: Int, onAnswered: () -> 
     }
 
     Column(modifier) {
-        Text(stringResource(R.string.onboard_access_title), style = Visor.type.title, color = Visor.colors.textPrimary)
+        Text(stringResource(R.string.onboard_access_title), style = Visor.type.title, color = Visor.colors.textPrimary, modifier = Modifier.asHeading())
         Text(stringResource(R.string.onboard_access_lede), style = Visor.type.body, color = Visor.colors.textSecondary, modifier = Modifier.padding(top = 8.dp))
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(top = 20.dp)) {
             for (need in ASKED) AccessRow(need, need in given, need == next, onClick = { ask(need) })
@@ -561,7 +562,7 @@ private fun AccessRow(need: Need, given: Boolean, current: Boolean, onClick: () 
                 .background(Color.White.copy(alpha = fill)),
             contentAlignment = Alignment.Center,
         ) {
-            if (given) Icon(VisorIcons.Check, null, Modifier.size(16.dp), tint = Color.Black)
+            if (given) Icon(VisorIcons.Check, stringResource(R.string.onboard_allowed), Modifier.size(16.dp), tint = Color.Black)
         }
         Column(Modifier.padding(start = 14.dp).weight(1f)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -592,7 +593,7 @@ private fun LoginPage(model: OnboardingViewModel, onLogin: () -> Unit, onEventLo
         onLogin()
     }
     Column(modifier) {
-        Text(stringResource(R.string.onboard_login_title), style = Visor.type.title, color = Visor.colors.textPrimary)
+        Text(stringResource(R.string.onboard_login_title), style = Visor.type.title, color = Visor.colors.textPrimary, modifier = Modifier.asHeading())
         Text(stringResource(R.string.onboard_login_body), style = Visor.type.body, color = Visor.colors.textSecondary, modifier = Modifier.padding(top = 10.dp))
         val line = when (val s = status) {
             MetaLogin.Status.LoggedIn -> stringResource(R.string.onboard_login_done)
@@ -652,7 +653,7 @@ private fun PairingPage(model: OnboardingViewModel, clock: androidx.compose.runt
     val seconds by remember { derivedStateOf { Demo.secondsLeft(clock.floatValue) } }
 
     Column(modifier) {
-        Text(stringResource(R.string.onboard_pair_title), style = Visor.type.title, color = Visor.colors.textPrimary)
+        Text(stringResource(R.string.onboard_pair_title), style = Visor.type.title, color = Visor.colors.textPrimary, modifier = Modifier.asHeading())
         Column(Modifier.padding(top = 16.dp)) {
             val lines = listOf(R.string.onboard_pair_fold, R.string.onboard_pair_hold, R.string.onboard_pair_blink)
             lines.forEachIndexed { i, text ->
@@ -761,7 +762,7 @@ private fun LinkingPage(model: OnboardingViewModel, status: Provisioner.Status, 
     Column(modifier, verticalArrangement = Arrangement.Bottom) {
         when {
             done != null -> {
-                Text(stringResource(R.string.onboard_ready), style = Visor.type.display, color = colors.textPrimary)
+                Text(stringResource(R.string.onboard_ready), style = Visor.type.display, color = colors.textPrimary, modifier = Modifier.asHeading())
                 Text(
                     stringResource(R.string.onboard_ready_sub, model.chosen?.name ?: stringResource(R.string.glasses_default_name)),
                     style = Visor.type.body, color = colors.textSecondary, modifier = Modifier.padding(top = 10.dp),
@@ -774,7 +775,7 @@ private fun LinkingPage(model: OnboardingViewModel, status: Provisioner.Status, 
                 })
             }
             bondFailure != null || failure != null -> {
-                Text(stringResource(R.string.onboard_failed), style = Visor.type.title, color = colors.textPrimary)
+                Text(stringResource(R.string.onboard_failed), style = Visor.type.title, color = colors.textPrimary, modifier = Modifier.asHeading())
                 val reason = when (bondFailure) {
                     BondFailed.Why.REFUSED -> stringResource(R.string.onboard_bond_refused)
                     BondFailed.Why.NO_ANSWER -> stringResource(R.string.onboard_bond_no_answer)

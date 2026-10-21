@@ -81,6 +81,7 @@ import com.macedonga.visor.stage.AnimateLight
 import com.macedonga.visor.stage.LightFrame
 import com.macedonga.visor.stage.LightPool
 import com.macedonga.visor.ui.VisorIcons
+import com.macedonga.visor.ui.asHeading
 import com.macedonga.visor.ui.rememberHaptics
 import java.io.File
 import java.time.LocalDate
@@ -212,7 +213,7 @@ fun MetaAiScreen(onSettings: () -> Unit, onMemories: () -> Unit, onSession: (Str
             if (days.isEmpty()) {
                 item(key = EMPTY) {
                     Column(Modifier.fillMaxWidth().padding(horizontal = SIDE).padding(top = 12.dp)) {
-                        Text(stringResource(R.string.meta_ai_empty_title), style = Visor.type.heading, color = colors.textPrimary)
+                        Text(stringResource(R.string.meta_ai_empty_title), style = Visor.type.heading, color = colors.textPrimary, modifier = Modifier.asHeading())
                         Text(stringResource(R.string.meta_ai_empty), style = ledeStyle(), color = colors.textSecondary, modifier = Modifier.padding(top = 10.dp))
                     }
                 }
@@ -265,7 +266,7 @@ fun MetaAiScreen(onSettings: () -> Unit, onMemories: () -> Unit, onSession: (Str
                 .padding(horizontal = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(stringResource(R.string.meta_ai_title), style = Visor.type.title, color = colors.textPrimary, modifier = Modifier.padding(start = 12.dp).weight(1f))
+            Text(stringResource(R.string.meta_ai_title), style = Visor.type.title, color = colors.textPrimary, modifier = Modifier.asHeading().padding(start = 12.dp).weight(1f))
             RoundIcon(VisorIcons.Memory, stringResource(R.string.meta_ai_memories), onMemories)
         }
 
@@ -380,7 +381,7 @@ private fun Actions(
                     }
                 }
                 is Pressed.OnDay -> {
-                    Text(dayTitle(pressed.day.date), style = Visor.type.heading, color = colors.textPrimary, modifier = Modifier.padding(horizontal = SIDE).padding(bottom = 10.dp))
+                    Text(dayTitle(pressed.day.date), style = Visor.type.heading, color = colors.textPrimary, modifier = Modifier.asHeading().padding(horizontal = SIDE).padding(bottom = 10.dp))
                     ActionRow(VisorIcons.Trash, stringResource(R.string.meta_ai_delete_day)) {
                         then { onDelete(pressed.day.conversations.flatMap { it.turns }.map { it.interactionId }.toSet()) }
                     }

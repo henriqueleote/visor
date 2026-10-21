@@ -3,42 +3,49 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/macedonga/visor/releases/latest"><img src="https://img.shields.io/github/v/release/macedonga/visor?style=for-the-badge&label=Download&color=FFD2A1&labelColor=161617&v=1" alt="Download the latest release"></a>
+  <b>An Android app for Meta glasses that replaces the Meta AI app.</b><br>
+  Your photos stay on your phone, and "Hey Meta" answers with the model you choose.
 </p>
 
-Visor is an Android app for Meta glasses, such as Ray-Ban Meta and Oakley Meta, that replaces the Meta AI app. It speaks the glasses' own protocol over Bluetooth and Wi-Fi Direct, keeps your photos on your phone, and answers "Hey Meta" with a model you choose.
+<p align="center">
+  <a href="https://github.com/macedonga/visor/releases/latest"><img src="https://img.shields.io/github/v/release/macedonga/visor?style=for-the-badge&label=Download&color=FFD2A1&labelColor=161617&v=1" alt="Download the latest release"></a>
+  <a href="https://github.com/macedonga/visor/discussions"><img src="https://img.shields.io/badge/Discussions-ask%20and%20share-FFD2A1?style=for-the-badge&labelColor=161617" alt="Discussions"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-AGPL--3.0-FFD2A1?style=for-the-badge&labelColor=161617" alt="License: AGPL-3.0"></a>
+</p>
 
-Visor is an independent project. It is not affiliated with, endorsed by or sponsored by Meta Platforms or EssilorLuxottica.
+<p align="center">
+  <a href="#what-it-does">Features</a> |
+  <a href="#install">Install</a> |
+  <a href="#what-it-sends-and-where">Privacy</a> |
+  <a href="#good-to-know">Good to know</a> |
+  <a href="#build-from-source">Build</a> |
+  <a href="#get-involved">Get involved</a>
+</p>
+
+Visor works with Ray-Ban Meta, Oakley Meta and the other Meta glasses. It speaks the glasses' own protocol over Bluetooth and Wi-Fi Direct.
+
+> [!NOTE]
+> Visor is an independent project. It is not affiliated with, endorsed by or sponsored by Meta Platforms or EssilorLuxottica.
 
 ## What it does
 
-- **Home.** A 3D model of your pair, lit by a light that shows their state: connected, charging, asleep, recording, out of reach. Under it, the glasses' battery and the case's, free space, volume, temperature and your latest photos.
-- **Gallery.** Imports photos and videos over Wi-Fi Direct, on its own when the glasses charge or when you ask. Live photos become Motion Photos. Everything goes to `Pictures/Visor` and `Movies/Visor`.
-- **Live view.** The glasses' camera on your phone, with recording, an instant replay of the last minutes, snapshots, RTMP broadcast and Live AI.
-- **Assistant.** "Hey Meta" goes to your own model: Claude, or any OpenAI-compatible endpoint. The glasses read the answer in their own voice. Every conversation is kept on the phone in a diary, and you can continue one from the app.
-- **Notifications.** Message notifications go to the glasses, which announce them with the sender's name from your contacts.
-- **Settings.** Every setting the glasses have, the way the Meta app shows them, plus an Advanced section with all the rest, assistant language packs and the firmware's feature flags.
-- **Outside the app.** A home screen widget, a Quick Settings tile, launcher shortcuts and a Live Update notification while the Live view runs.
-- **Developer mode.** Other apps and automations can take photos and videos, import captures and hear about new ones. See [Developer mode](docs/developer-mode.md).
-
-## What it sends, and where
-
-Visor has no server of its own, no analytics and no crash reporting. It connects to:
-
-- Meta, during setup: the login (`accounts.meta.com`) and the ownership receipt that makes Visor the owner app of your glasses (`graph.facebook-hardware.com`).
-- Meta, when it needs to: the frame style and lens colour of your pair, and assistant language packs (`ar-genai.graph.meta.com`).
-- The model provider you set for the assistant, with your own API key.
-- The RTMP server you enter, when you broadcast from the Live view.
-- GitHub, twice a day: the latest release, to tell you when there is a new version (`api.github.com`). Turn it off in Settings, About.
-
-Everything else stays between the phone and the glasses.
+| Feature | What it does |
+|---|---|
+| **Home** | A 3D model of your pair, lit by a light that shows their state: connected, charging, asleep, recording, out of reach. Under it: both batteries, free space, volume, temperature and your latest photos. |
+| **Gallery** | Imports photos and videos over Wi-Fi Direct, on its own while the glasses charge or when you ask. Live photos become Motion Photos. Files go to `Pictures/Visor` and `Movies/Visor`. |
+| **Live view** | The glasses' camera on your phone, with recording, an instant replay of the last minutes, snapshots, RTMP broadcast and Live AI. |
+| **Assistant** | "Hey Meta" goes to your own model: Claude, or any OpenAI-compatible endpoint. The glasses read the answer in their own voice. A diary on the phone keeps every conversation, and you can continue one from the app. |
+| **Notifications** | Message notifications go to the glasses, which announce the sender by the name in your contacts. |
+| **Settings** | Every setting the glasses have, the way the Meta app shows them. Advanced holds the rest, assistant language packs and the firmware's feature flags. |
+| **Outside the app** | A home screen widget, a Quick Settings tile, launcher shortcuts, and a Live Update notification while the Live view runs. |
+| **Developer mode** | Other apps and automations can take photos and videos, import captures and hear about new ones. See [Developer mode](docs/developer-mode.md). |
 
 ## Requirements
 
-- A pair of Meta glasses, such as Ray-Ban Meta or Oakley Meta. Support for the Meta Ray-Ban Display is limited and lives on the [`display`](https://github.com/macedonga/visor/tree/display) branch.
-- An Android phone with Android 10 or later.
-- A Meta account, for setup. Log in with a password or an email code. Passkeys do not work.
-- For the assistant: an API key from Anthropic or from an OpenAI-compatible service.
+- **Glasses:** a pair of Meta glasses, such as Ray-Ban Meta or Oakley Meta. Support for the Meta Ray-Ban Display is limited and lives on the [`display`](https://github.com/macedonga/visor/tree/display) branch.
+- **Phone:** Android 10 or later.
+- **Meta account**, for setup. Log in with a password or an email code. Passkeys do not work.
+- **For the assistant:** an API key from Anthropic or from an OpenAI-compatible service.
 
 ## Install
 
@@ -47,27 +54,58 @@ Everything else stays between the phone and the glasses.
 3. Install the APK. Android asks you to allow installs from your browser or file manager.
 4. Open Visor and follow the setup: permissions, Meta login, pairing, then pick your glasses.
 
-To put the glasses in pairing mode, fold both arms and hold the capture button for about 5 seconds. The LED inside the frame blinks blue.
+> [!TIP]
+> To put the glasses in pairing mode, fold both arms and hold the capture button for about 5 seconds. The LED inside the frame blinks blue.
 
-Release APKs are signed with this certificate:
+<details>
+<summary>Release signing certificate</summary>
 
 ```
 CN=Visor
 SHA-256: F6:01:C7:FE:63:EF:04:E0:7F:66:8A:EC:BA:5A:2B:9C:23:90:C4:C0:22:B5:2B:5F:B0:F6:D3:04:22:7C:B9:C7
 ```
 
-## Things to know
+</details>
 
-- The glasses accept one session at a time. If the Meta AI app connects to them, the session Visor holds ends, and the other way round.
-- A build you made yourself has a different signing key from a release. Uninstall it before you install a release, and the other way round. Uninstalling removes the login and the glasses' keys from the phone, so you set up again.
-- For English answers in the glasses' own voice, Visor sometimes turns off a Meta setting and restarts the glasses' assistant when it connects. The first "Hey Meta" or two after that can go unheard.
-- The assistant answers only as well as the model you give it. Visor sends it the question, the recent conversation and, when you ask about what you see, the photo the glasses take.
+## What it sends, and where
+
+Visor has no server of its own, no analytics and no crash reporting. It connects only to these:
+
+| To | When | What for |
+|---|---|---|
+| Meta (`accounts.meta.com`, `graph.facebook-hardware.com`) | During setup | The login, and the ownership receipt that makes Visor the owner app of your glasses |
+| Meta (`ar-genai.graph.meta.com`) | When it needs to | Your pair's frame style and lens colour, and assistant language packs |
+| Your model provider | When you ask the assistant | Your question, with your own API key |
+| Your RTMP server | When you broadcast from the Live view | The broadcast |
+| GitHub (`api.github.com`) | Twice a day | The latest release, to tell you about a new version. Turn it off in Settings, About. |
+
+Everything else stays between the phone and the glasses.
+
+## Good to know
+
+> [!IMPORTANT]
+> The glasses accept one session at a time. If the Meta AI app connects to them, Visor's session ends, and the other way round.
+
+- **Your own builds and releases do not mix.** A build you made has a different signing key from a release, so uninstall one before you install the other. Uninstalling removes the login and the glasses' keys from the phone, and you set up again.
+- **The first "Hey Meta" can go unheard.** For English answers in the glasses' own voice, Visor sometimes turns off a Meta setting and restarts the glasses' assistant when it connects.
+- **The assistant is as good as your model.** Visor sends it the question, the recent conversation and, when you ask about what you see, the photo the glasses take.
 
 ## Build from source
 
 You need JDK 21 (the one bundled with Android Studio works) and the Android SDK with platform 37.
 
-Setup logs in to Meta with the Meta AI app's own client tokens. They are not in this repository: extract them from the official Meta AI app, where they are the strings that start with `HW|`, `AR|` and `FRL|`. Add them to `local.properties` before you build:
+```
+./gradlew :app:assembleDebug
+adb install -r app/build/outputs/apk/debug/app-debug.apk
+```
+
+> [!WARNING]
+> Setup logs in to Meta with the Meta AI app's own client tokens, and they are not in this repository. Without them Visor builds and runs, but the Meta login and the ownership step of setup fail.
+
+<details>
+<summary>Adding the Meta client tokens</summary>
+
+Extract the tokens from the official Meta AI app, where they are the strings that start with `HW|`, `AR|` and `FRL|`. Add them to `local.properties` before you build:
 
 ```
 VISOR_META_HW_TOKEN=HW|...
@@ -75,12 +113,12 @@ VISOR_META_AR_TOKEN=AR|...
 VISOR_META_FRL_TOKEN=FRL|...
 ```
 
-Without them Visor builds and runs, but the Meta login and the ownership step of setup fail. Release builds in CI read them from the repository secrets with the same names.
+Release builds in CI read them from the repository secrets with the same names.
 
-```
-./gradlew :app:assembleDebug
-adb install -r app/build/outputs/apk/debug/app-debug.apk
-```
+</details>
+
+<details>
+<summary>Debug builds and releases</summary>
 
 Debug builds write every frame to `files/wire.log` on the phone:
 
@@ -92,7 +130,10 @@ They also have a broadcast receiver that drives the app from adb (`app/src/debug
 
 A tag like `v1.2.3` builds the signed release APK in CI and publishes it as a GitHub release (`.github/workflows/release.yml`).
 
-## How it is built
+</details>
+
+<details>
+<summary>How the code is laid out</summary>
 
 | Module | What it holds |
 |---|---|
@@ -109,15 +150,17 @@ A tag like `v1.2.3` builds the signed release APK in CI and publishes it as a Gi
 
 [CLAUDE.md](CLAUDE.md) lists the protocol traps that cost the most time to find.
 
-## Contributing
+</details>
 
-Read [CONTRIBUTING.md](CONTRIBUTING.md) first. There are no test suites: changes are tried on real glasses, and a pull request says what was tried.
+## Get involved
 
-Questions, ideas and reports of how Visor works on your pair go to [Discussions](https://github.com/macedonga/visor/discussions).
-
-[ACCESSIBILITY.md](ACCESSIBILITY.md) says what Visor does for accessibility, what it does not do yet, and how to report a problem.
-
-Report security problems privately, as [SECURITY.md](SECURITY.md) explains, not in a public issue.
+| You have | Go to |
+|---|---|
+| A question, an idea, or a report of how Visor works on your pair | [Discussions](https://github.com/macedonga/visor/discussions) |
+| A bug | [Issues](https://github.com/macedonga/visor/issues/new/choose), with the event log from Settings, Advanced, Event log |
+| An accessibility problem | The accessibility form in [Issues](https://github.com/macedonga/visor/issues/new/choose). [ACCESSIBILITY.md](ACCESSIBILITY.md) says what works and what does not yet. |
+| A security problem | A private report, as [SECURITY.md](SECURITY.md) explains. Never a public issue. |
+| Code to contribute | [CONTRIBUTING.md](CONTRIBUTING.md) first. There are no test suites: changes are tried on real glasses, and a pull request says what was tried. |
 
 ## License
 

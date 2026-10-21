@@ -36,6 +36,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.macedonga.visor.R
 import com.macedonga.visor.core.design.Visor
+import com.macedonga.visor.ui.switchRow
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -101,7 +102,7 @@ fun NotifyAppsScreen(model: SettingsViewModel = hiltViewModel()) {
 private fun AppRow(app: PhoneApp, on: Boolean, onChange: (Boolean) -> Unit) {
     val host = LocalHost.current
     Row(
-        Modifier.fillMaxWidth().clickable { host.haptics.toggle(); onChange(!on) }.padding(horizontal = 16.dp, vertical = 10.dp),
+        Modifier.fillMaxWidth().switchRow(on).clickable { host.haptics.toggle(); onChange(!on) }.padding(horizontal = 16.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         if (app.icon != null) Image(app.icon, null, Modifier.size(32.dp).clip(RoundedCornerShape(8.dp)))

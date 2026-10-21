@@ -46,6 +46,7 @@ import com.macedonga.visor.core.settings.parseProto
 import com.macedonga.visor.core.settings.parseSchema
 import com.macedonga.visor.ui.Line
 import com.macedonga.visor.ui.Section
+import com.macedonga.visor.ui.asHeading
 
 /** An encoded setting: a one-line summary, and an editor built from its schema behind "Open". */
 @Composable
@@ -112,7 +113,7 @@ private fun StructuredDialog(
                 .padding(horizontal = 20.dp, vertical = 16.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            Text(title, style = Visor.type.title, color = Visor.colors.textPrimary)
+            Text(title, style = Visor.type.title, color = Visor.colors.textPrimary, modifier = Modifier.asHeading())
             MessageEditor(schema, schema.root, fields, editable) { fields = it }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 12.dp)) {
                 OutlinedButton(onClick = onDismiss) { Text(if (editable) "Cancel" else "Close") }
