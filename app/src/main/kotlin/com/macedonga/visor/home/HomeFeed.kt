@@ -212,8 +212,8 @@ fun StatusPill(
                 }
                 if (band != null) {
                     Spacer(Modifier.size(14.dp))
-                    Level(VisorIcons.Band, band, critical = band <= 10 && !bandCharging)
-                    if (bandCharging) Icon(VisorIcons.Bolt, null, Modifier.padding(start = 2.dp).size(13.dp), tint = colors.textPrimary)
+                    Level(VisorIcons.Band, stringResource(R.string.topic_band), band, critical = band <= 10 && !bandCharging)
+                    if (bandCharging) Icon(VisorIcons.Bolt, stringResource(R.string.mood_charging), Modifier.padding(start = 2.dp).size(13.dp), tint = colors.textPrimary)
                 }
             }
         }
@@ -270,11 +270,11 @@ fun OtherPairPill(mood: Mood, seen: PairSeen?, peeking: Boolean, onConnect: (() 
         val glasses = seen?.glasses
         if (glasses != null && !peeking) {
             Spacer(Modifier.size(12.dp))
-            Row(Modifier.graphicsLayer { alpha = if (fresh) 1f else 0.45f }, verticalAlignment = Alignment.CenterVertically) {
-                Level(VisorIcons.Glasses, glasses, critical = false)
+            Row(Modifier.graphicsLayer { alpha = if (fresh) 1f else 0.6f }, verticalAlignment = Alignment.CenterVertically) {
+                Level(VisorIcons.Glasses, stringResource(R.string.glasses_battery), glasses, critical = false)
                 seen.case?.let {
                     Spacer(Modifier.size(14.dp))
-                    Level(VisorIcons.Case, it, critical = false)
+                    Level(VisorIcons.Case, stringResource(R.string.glasses_case_label), it, critical = false)
                 }
             }
         }
