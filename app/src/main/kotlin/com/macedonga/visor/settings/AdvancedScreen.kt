@@ -27,6 +27,7 @@ import com.macedonga.visor.ui.VisorIcons
 fun AdvancedScreen(open: (NavKey) -> Unit, model: SettingsViewModel = hiltViewModel()) {
     val glasses by model.connection.state.collectAsStateWithLifecycle()
     val state by model.settings.state.collectAsStateWithLifecycle()
+    val developer by model.developer.on.collectAsStateWithLifecycle()
     val display = hasDisplay(glasses.info?.build)
     val all = allKeys(model.settings, state)
     val changed = all.count { state.changed(it, model.settings.catalogue[it]) }
@@ -61,6 +62,7 @@ fun AdvancedScreen(open: (NavKey) -> Unit, model: SettingsViewModel = hiltViewMo
                     { NavRow(VisorIcons.Flag, stringResource(R.string.settings_flags), stringResource(R.string.settings_flags_sub), onClick = { open(FlagsKey) }, onCard = true) },
                     { NavRow(VisorIcons.Pulse, stringResource(R.string.settings_diagnostics), stringResource(R.string.settings_diagnostics_sub), onClick = { open(DeviceKey) }, onCard = true) },
                     { NavRow(VisorIcons.Lines, stringResource(R.string.settings_event_log), stringResource(R.string.settings_event_log_sub), onClick = { open(EventLogKey) }, onCard = true) },
+                    { ToggleRow(stringResource(R.string.settings_developer), developer, { model.developer.set(it) }, sub = stringResource(R.string.settings_developer_sub)) },
                 )
             }
         }

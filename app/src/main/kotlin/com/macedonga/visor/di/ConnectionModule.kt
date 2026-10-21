@@ -26,6 +26,7 @@ import com.macedonga.visor.core.connection.GlassesConnection
 import com.macedonga.visor.core.connection.GlassesWifi
 import com.macedonga.visor.core.connection.RealSessionHostFactory
 import com.macedonga.visor.core.connection.SessionHostFactory
+import com.macedonga.visor.core.connection.Shutter
 import com.macedonga.visor.core.connection.TransportFactory
 import com.macedonga.visor.core.identity.IdentityStore
 import com.macedonga.visor.core.identity.KeystoreSealer
@@ -185,6 +186,10 @@ object ConnectionModule {
     @Singleton
     fun captions(connection: GlassesConnection): com.macedonga.visor.core.connection.Captions =
         com.macedonga.visor.core.connection.Captions(connection)
+
+    @Provides
+    @Singleton
+    fun shutter(connection: GlassesConnection): Shutter = Shutter(connection)
 
     @Provides
     @Singleton

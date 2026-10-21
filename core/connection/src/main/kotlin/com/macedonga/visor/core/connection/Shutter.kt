@@ -1,0 +1,97 @@
+package com.macedonga.visor.core.connection
+
+import com.macedonga.visor.core.protocol.Wire
+import com.macedonga.visor.core.session.LinkState
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.withTimeoutOrNull
+
+/** What the glasses film when asked from the phone: the capture types their assistant's start_recording takes. */
+enum class VideoKind(val wire: String) {
+    VIDEO("video"),
+    HYPERLAPSE("hyperlapse"),
+    ;
+
+    companion object {
+        fun of(name: String?) = entries.firstOrNull { it.wire == name } ?: VIDEO
+    }
+}
+
+/**
+ * The glasses' camera, worked from the phone as their capture button would: svc28 SNIntent (2300) {1 action, 2 extras}.
+ * A video starts on AGENTIC_START_RECORDING, the broadcast their own assistant sends, and stops on CLOSE_APP_CAPTURE,
+ * their "stop recording". A photo goes through action.robusta.capture, which opens the capture with a launch type.
+ * Each answer is the camera state the glasses push on svc28.
+ */
+class Shutter(private val connection: GlassesConnection) {
+    private val _notes = MutableSharedFlow<String>(extraBufferCapacity = 16)
+    val notes: SharedFlow<String> = _notes.asSharedFlow()
+
+    val recording: Flow<Boolean> = connection.state.map { it.device?.camera == VIDEO_STARTED }.distinctUntilChanged()
+
+    /** Take a photo. True once the glasses say the capture started. */
+    suspend fun photo(): Boolean = ask("photo", { it == PHOTO_STARTED }) {
+        snIntent(ROBUSTA_CAPTURE, text(LAUNCH_TYPE, "CAPTURE_EXTRA_LAUNCH_TYPE_PHOTO"), text(REFERRER, "SHORT_BUTTON"), flag(IS_MODAL, true))
+    }
+
+    /** Start filming. True once the glasses say the video started. */
+    suspend fun video(kind: VideoKind = VideoKind.VIDEO): Boolean = ask(kind.wire, { it == VIDEO_STARTED }) {
+        snIntent(AGENTIC_START_RECORDING, text(CAPTURE_TYPE, kind.wire))
+    }
+
+    /** Stop the video. True once the glasses say it stopped, or at once when none is running. */
+    suspend fun stop(): Boolean {
+        if (connection.state.value.device?.camera != VIDEO_STARTED) return true
+        return ask("stop", { it != VIDEO_STARTED }) { snIntent(CLOSE_APP_CAPTURE) }
+    }
+
+    /** Stop a running video, or start one. */
+    suspend fun toggle(kind: VideoKind = VideoKind.VIDEO): Boolean =
+        if (connection.state.value.device?.camera == VIDEO_STARTED) stop() else video(kind)
+
+    private suspend fun ask(what: String, done: (String?) -> Boolean, intent: () -> ByteArray): Boolean {
+        if (connection.state.value.link != LinkState.READY) {
+            _notes.tryEmit("$what: not connected")
+            return false
+        }
+        val answered = coroutineScope {
+            // Watching before sending, so a quick answer is not missed; the state at hand is not one.
+            val seen = async { withTimeoutOrNull(ANSWER_MS) { connection.state.map { it.device?.camera }.drop(1).first(done) } }
+            connection.submit { it.sendOnService(SVC_COMPANION, MT_SNINTENT, intent()) }
+            seen.await()
+        }
+        _notes.tryEmit(if (answered != null) "$what: $answered" else "$what: no answer from the glasses")
+        return answered != null
+    }
+
+    private fun snIntent(action: String, vararg extras: ByteArray): ByteArray =
+        extras.fold(Wire.fieldBytes(1, action.encodeToByteArray())) { out, e -> out + Wire.fieldBytes(2, e) }
+
+    /** One SNIntentData: the key, then the value in its type's field (2 bool, 5 bytes). */
+    private fun text(key: String, value: String) = Wire.fieldBytes(1, key.encodeToByteArray()) + Wire.fieldBytes(5, value.encodeToByteArray())
+
+    private fun flag(key: String, value: Boolean) = Wire.fieldBytes(1, key.encodeToByteArray()) + Wire.fieldVarint(2, if (value) 1L else 0L)
+
+    private companion object {
+        const val SVC_COMPANION = 28
+        const val MT_SNINTENT = 2300
+        const val ANSWER_MS = 5_000L
+        const val PHOTO_STARTED = "CAPTURE_PHOTO_STARTED"
+        const val VIDEO_STARTED = "CAPTURE_VIDEO_STARTED"
+        const val ROBUSTA_CAPTURE = "action.robusta.capture"
+        const val AGENTIC_START_RECORDING = "com.meta.smartglass.app.intent.action.AGENTIC_START_RECORDING"
+        const val CLOSE_APP_CAPTURE = "com.meta.smartglass.app.intent.action.CLOSE_APP_CAPTURE"
+        const val LAUNCH_TYPE = "com.meta.smartglass.intent.action.LAUNCH_TYPE"
+        const val REFERRER = "android.intent.extra.REFERRER_NAME"
+        const val IS_MODAL = "IS_MODAL"
+        const val CAPTURE_TYPE = "capture_type"
+    }
+}

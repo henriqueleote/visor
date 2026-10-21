@@ -62,6 +62,8 @@
     <string name="fact_volume">Volume</string>
     <string name="fact_temperature">Temperatura</string>
     <string name="fact_last_capture">Ultimo scatto</string>
+    <string name="shutter_take_photo">Scatta foto</string>
+    <string name="shutter_record_video">Registra video</string>
     <string name="ago_now">adesso</string>
     <string name="ago_minutes">%d min fa</string>
     <string name="ago_hours">%d h fa</string>
@@ -352,6 +354,8 @@
     <string name="settings_no_way_to_write">Gli occhiali non danno modo di scriverla.</string>
     <string name="settings_flags">Feature flag</string>
     <string name="settings_flags_sub">Gli interruttori di Meta per funzioni che non ha attivato</string>
+    <string name="settings_developer">Modalità sviluppatore</string>
+    <string name="settings_developer_sub">Intent della fotocamera ed eventi di scatto per altre app</string>
     <string name="settings_diagnostics_sub">Il collegamento, la chiave e cosa riportano gli occhiali</string>
     <string name="settings_event_log_sub">Tutto ciò che ha fatto il collegamento, dal più vecchio</string>
     <string name="tiles_hint">Tieni premuta un\'impostazione per fissarla qui</string>

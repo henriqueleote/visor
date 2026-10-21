@@ -175,6 +175,7 @@ class SettingsViewModel @Inject constructor(
     val band: com.macedonga.visor.band.BandLink,
     val bands: com.macedonga.visor.band.Bands,
     val bandSetup: com.macedonga.visor.band.BandSetup,
+    val developer: com.macedonga.visor.outside.DeveloperMode,
 ) : ViewModel()
 
 /**

@@ -111,10 +111,16 @@ class MediaImport(
     /** Where photos are edited from their originals. */
     val darkroom = Darkroom(context, index)
 
+    private val _imported = MutableSharedFlow<String>(extraBufferCapacity = 16)
+
+    /** Each capture as it lands in the gallery, by handle; [index] says where. */
+    val imported: SharedFlow<String> = _imported.asSharedFlow()
+
     private val assembly = Assembly(
         context, index, places, ::say,
         onSaved = { handle ->
             _saved.update { it + 1 }
+            _imported.tryEmit(handle)
             _inFlight.update { it - handle }
             // A problem about captures that have now arrived is no longer one.
             _problem.update { p -> p?.copy(handles = p.handles - handle)?.takeIf { it.handles.isNotEmpty() } }

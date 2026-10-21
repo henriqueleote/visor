@@ -19,6 +19,7 @@ Visor is an independent project. It is not affiliated with, endorsed by or spons
 - **Notifications.** Message notifications go to the glasses, which announce them with the sender's name from your contacts.
 - **Settings.** Every setting the glasses have, the way the Meta app shows them, plus an Advanced section with all the rest, assistant language packs and the firmware's feature flags.
 - **Outside the app.** A home screen widget, a Quick Settings tile, launcher shortcuts and a Live Update notification while the Live view runs.
+- **Developer mode.** Other apps and automations can take photos and videos, import captures and hear about new ones. See [Developer mode](docs/developer-mode.md).
 
 ## What it sends, and where
 

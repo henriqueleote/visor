@@ -44,6 +44,7 @@ class EventLog @Inject constructor(
     tools: com.macedonga.visor.core.assistant.mcp.McpHub,
     timers: Timers,
     hearing: Hearing,
+    shutter: com.macedonga.visor.core.connection.Shutter,
     phone: com.macedonga.visor.phone.PhoneActions,
 ) {
 
@@ -104,6 +105,9 @@ class EventLog @Inject constructor(
         }
         scope.launch {
             hearing.notes.collect { add("Hearing: $it") }
+        }
+        scope.launch {
+            shutter.notes.collect { add("Capture: $it") }
         }
         scope.launch {
             phone.notes.collect { add("Phone: $it") }

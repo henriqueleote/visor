@@ -110,6 +110,38 @@
             </intent-filter>
         </activity>
 
+        <!-- Other apps, automations and the launcher's shortcuts work the glasses through these two; developer mode turns them on. -->
+        <activity
+            android:name=".outside.DeveloperActivity"
+            android:enabled="false"
+            android:excludeFromRecents="true"
+            android:exported="true"
+            android:noHistory="true"
+            android:taskAffinity=""
+            android:theme="@android:style/Theme.Translucent.NoTitleBar">
+            <intent-filter>
+                <action android:name="com.macedonga.visor.action.TAKE_PHOTO" />
+                <action android:name="com.macedonga.visor.action.START_VIDEO" />
+                <action android:name="com.macedonga.visor.action.STOP_VIDEO" />
+                <action android:name="com.macedonga.visor.action.TOGGLE_VIDEO" />
+                <action android:name="com.macedonga.visor.action.IMPORT_MEDIA" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
+
+        <receiver
+            android:name=".outside.DeveloperReceiver"
+            android:enabled="false"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.macedonga.visor.action.TAKE_PHOTO" />
+                <action android:name="com.macedonga.visor.action.START_VIDEO" />
+                <action android:name="com.macedonga.visor.action.STOP_VIDEO" />
+                <action android:name="com.macedonga.visor.action.TOGGLE_VIDEO" />
+                <action android:name="com.macedonga.visor.action.IMPORT_MEDIA" />
+            </intent-filter>
+        </receiver>
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.files"

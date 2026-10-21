@@ -63,6 +63,8 @@
     <string name="fact_volume">Volume</string>
     <string name="fact_temperature">Temperature</string>
     <string name="fact_last_capture">Last capture</string>
+    <string name="shutter_take_photo">Take photo</string>
+    <string name="shutter_record_video">Record video</string>
     <string name="ago_now">just now</string>
     <string name="ago_minutes">%d min ago</string>
     <string name="ago_hours">%d h ago</string>
@@ -353,6 +355,8 @@
     <string name="settings_no_way_to_write">The glasses give no way to write this one.</string>
     <string name="settings_flags">Feature flags</string>
     <string name="settings_flags_sub">Meta\'s switches for features it has not turned on</string>
+    <string name="settings_developer">Developer mode</string>
+    <string name="settings_developer_sub">Camera intents and capture events for other apps</string>
     <string name="settings_diagnostics_sub">The link, the key and what the glasses report</string>
     <string name="settings_event_log_sub">Everything the link did, newest last</string>
     <string name="tiles_hint">Hold any setting to pin it here</string>

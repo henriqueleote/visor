@@ -66,6 +66,7 @@ class DebugReceiver : BroadcastReceiver() {
     @Inject lateinit var requests: com.macedonga.visor.connection.RequestLog
     @Inject lateinit var login: com.macedonga.visor.login.MetaLogin
     @Inject lateinit var internet: com.macedonga.visor.connection.InternetSwitch
+    @Inject lateinit var developer: com.macedonga.visor.outside.DeveloperMode
 
     override fun onReceive(context: Context, intent: Intent) {
         val action = intent.action?.substringAfterLast('.').orEmpty()
@@ -200,6 +201,11 @@ class DebugReceiver : BroadcastReceiver() {
             }
             // Restart only the glasses' assistant (it re-reads MobileConfig): live_caption_voice_id away and back.
             "ASSISTANT_RESTART" -> answerLater { if (com.macedonga.visor.language.restartGlassesAssistant(settings)) "restarting the glasses' assistant" else "not connected" }
+            // Developer mode on or off: --ez on false.
+            "DEVELOPER" -> {
+                developer.set(intent.getBooleanExtra("on", true))
+                resultData = "developer mode ${developer.on.value}"
+            }
             "MC_READ" -> {
                 config.read()
                 resultData = "asking the glasses for a bug report"

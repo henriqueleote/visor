@@ -73,6 +73,9 @@ class GlassesService : Service() {
     lateinit var log: com.macedonga.visor.log.EventLog
 
     @Inject
+    lateinit var developer: com.macedonga.visor.outside.DeveloperMode
+
+    @Inject
     lateinit var glassesSettings: com.macedonga.visor.core.settings.GlassesSettings
 
     // Injected so the widget and the Quick Settings tile follow the glasses while no screen is open.
@@ -124,6 +127,7 @@ class GlassesService : Service() {
             com.macedonga.visor.gallery.notePlaces(this, scope, connection, media.places)
             com.macedonga.visor.gallery.importOnItsOwn(this, scope, connection, media, importChoice)
             com.macedonga.visor.language.keepAssistantConfig(scope, connection, glassesConfig, media, glassesSettings, assistantConfig, log)
+            developer.keep(scope)
             com.macedonga.visor.settings.keepCameraInLine(scope, glassesSettings, assistantConfig, log)
             notifications = scope.launch {
                 combine(connection.state, liveNow()) { state, now -> state to now }.collect { (state, now) ->
