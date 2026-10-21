@@ -51,6 +51,7 @@ import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.SheetState
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Switch
@@ -741,8 +742,13 @@ fun ActionPill(text: String, onClick: () -> Unit, modifier: Modifier = Modifier,
 /** The bottom sheet every settings page uses. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun VisorSheet(onDismiss: () -> Unit, full: Boolean = false, content: @Composable ColumnScope.() -> Unit) {
-    val state = rememberModalBottomSheetState(skipPartiallyExpanded = full)
+fun VisorSheet(onDismiss: () -> Unit, full: Boolean = false, content: @Composable ColumnScope.() -> Unit) =
+    VisorSheet(onDismiss, rememberModalBottomSheetState(skipPartiallyExpanded = full), content)
+
+/** The same sheet with its [state] in the caller's hands, to slide it away before it goes. */
+@ExperimentalMaterial3Api
+@Composable
+fun VisorSheet(onDismiss: () -> Unit, state: SheetState, content: @Composable ColumnScope.() -> Unit) {
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = state,

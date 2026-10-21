@@ -1,0 +1,56 @@
+name: Accessibility problem
+description: Something in Visor does not work with TalkBack, large text or another accessibility setting.
+labels: [accessibility]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for reporting this. ACCESSIBILITY.md lists the problems that are already known.
+        Remove serial numbers, Bluetooth addresses, tokens and API keys from everything you paste.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you tried to do, what you expected, and what happened instead.
+    validations:
+      required: true
+  - type: dropdown
+    id: severity
+    attributes:
+      label: How much does it stop you
+      options:
+        - Critical. I cannot do the task at all.
+        - High. I can do the task, but only with a way around the problem.
+        - Medium. The task is hard or slow.
+        - Low. It is annoying, but I can do the task.
+    validations:
+      required: true
+  - type: textarea
+    id: assistive
+    attributes:
+      label: Assistive technology and settings
+      description: The screen reader or other tool and its version, and the settings you changed.
+      placeholder: TalkBack 15, largest font size, default display size
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open the gallery
+        2. ...
+  - type: input
+    id: version
+    attributes:
+      label: Visor version
+      description: Settings, About.
+    validations:
+      required: true
+  - type: input
+    id: phone
+    attributes:
+      label: Phone and Android version
+      placeholder: Pixel 9, Android 16
+    validations:
+      required: true

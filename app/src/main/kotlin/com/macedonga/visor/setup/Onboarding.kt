@@ -763,7 +763,7 @@ private fun LinkingPage(model: OnboardingViewModel, status: Provisioner.Status, 
             done != null -> {
                 Text(stringResource(R.string.onboard_ready), style = Visor.type.display, color = colors.textPrimary)
                 Text(
-                    stringResource(R.string.onboard_ready_sub, model.chosen?.name ?: "Ray-Ban Meta"),
+                    stringResource(R.string.onboard_ready_sub, model.chosen?.name ?: stringResource(R.string.glasses_default_name)),
                     style = Visor.type.body, color = colors.textSecondary, modifier = Modifier.padding(top = 10.dp),
                 )
                 if (!done.reusedKey) Text(stringResource(R.string.onboard_new_key), style = Visor.type.label, color = colors.textTertiary, modifier = Modifier.padding(top = 14.dp))

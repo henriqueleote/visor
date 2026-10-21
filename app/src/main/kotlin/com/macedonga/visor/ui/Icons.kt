@@ -72,6 +72,8 @@ object VisorIcons {
     val Heart = icon(HEART)
     val HeartFilled = icon(HEART, filled = true)
 
+    val Star = icon("M12 3.8L14.12 9.49 20.18 9.74 15.42 13.51 17.06 19.36 12 16 6.94 19.36 8.58 13.51 3.82 9.74 9.88 9.49z", filled = true)
+
     val Share = icon(
         "M12 3.8v11", "M8.2 7.4L12 3.8l3.8 3.6",
         "M7 10.5h-.5A1.5 1.5 0 0 0 5 12v6.5A1.5 1.5 0 0 0 6.5 20h11a1.5 1.5 0 0 0 1.5-1.5V12a1.5 1.5 0 0 0-1.5-1.5H17",

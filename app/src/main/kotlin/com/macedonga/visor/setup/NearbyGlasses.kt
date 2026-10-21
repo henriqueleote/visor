@@ -9,6 +9,7 @@ import android.bluetooth.le.ScanResult
 import android.bluetooth.le.ScanSettings
 import android.content.Context
 import android.os.SystemClock
+import com.macedonga.visor.R
 import com.macedonga.visor.core.transport.META_LE_SERVICE
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
@@ -147,7 +148,9 @@ class NearbyGlasses @Inject constructor(@ApplicationContext private val context:
     private fun productName(product: Int?) = when (product) {
         257 -> "Ray-Ban Stories"
         259, 270, 271 -> "Meta Ray-Ban Display"
-        else -> "Ray-Ban Meta"
+        264 -> "Oakley Meta Vanguard"
+        265 -> "Oakley Meta HSTN"
+        else -> context.getString(R.string.glasses_default_name)
     }
 
     private companion object {

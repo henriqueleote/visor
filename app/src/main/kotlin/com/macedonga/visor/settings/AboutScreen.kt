@@ -12,7 +12,11 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.macedonga.visor.BuildConfig
 import com.macedonga.visor.R
+import com.macedonga.visor.update.NEW_DISCUSSION_URL
+import com.macedonga.visor.update.NEW_ISSUE_URL
+import com.macedonga.visor.update.REPO_URL
 import com.macedonga.visor.update.downloadIntent
+import com.macedonga.visor.update.openLink
 
 /** What this is: Visor's version, the glasses' firmware, and the work it stands on. */
 @Composable
@@ -40,6 +44,16 @@ fun AboutScreen(model: SettingsViewModel = hiltViewModel()) {
         item(key = "updates") {
             Column(Modifier.padding(top = 14.dp)) {
                 Rows({ ToggleRow(stringResource(R.string.update_look), looking, model.updates::setEnabled, sub = stringResource(R.string.update_look_sub)) })
+            }
+        }
+        item(key = "github") {
+            Column {
+                SectionLabel("GitHub")
+                Rows(
+                    { ValueRow(stringResource(R.string.about_report), null, onClick = { openLink(context, NEW_ISSUE_URL) }) },
+                    { ValueRow(stringResource(R.string.about_discuss), null, onClick = { openLink(context, NEW_DISCUSSION_URL) }) },
+                    { ValueRow(stringResource(R.string.about_star), null, onClick = { openLink(context, REPO_URL) }) },
+                )
             }
         }
         item(key = "credits") {

@@ -6,7 +6,7 @@
   <a href="https://github.com/macedonga/visor/releases/latest"><img src="https://img.shields.io/github/v/release/macedonga/visor?style=for-the-badge&label=Download&color=FFD2A1&labelColor=161617&v=1" alt="Download the latest release"></a>
 </p>
 
-Visor is an Android app for Ray-Ban Meta glasses that replaces the Meta AI app. It speaks the glasses' own protocol over Bluetooth and Wi-Fi Direct, keeps your photos on your phone, and answers "Hey Meta" with a model you choose.
+Visor is an Android app for Meta glasses, such as Ray-Ban Meta and Oakley Meta, that replaces the Meta AI app. It speaks the glasses' own protocol over Bluetooth and Wi-Fi Direct, keeps your photos on your phone, and answers "Hey Meta" with a model you choose.
 
 Visor is an independent project. It is not affiliated with, endorsed by or sponsored by Meta Platforms or EssilorLuxottica.
 
@@ -35,7 +35,7 @@ Everything else stays between the phone and the glasses.
 
 ## Requirements
 
-- Ray-Ban Meta (Gen 2). Visor is tested on firmware 72387580077200100. Other Meta glasses are not tested.
+- A pair of Meta glasses, such as Ray-Ban Meta or Oakley Meta. Support for the Meta Ray-Ban Display is limited and lives on the [`display`](https://github.com/macedonga/visor/tree/display) branch.
 - An Android phone with Android 10 or later.
 - A Meta account, for setup. Log in with a password or an email code. Passkeys do not work.
 - For the assistant: an API key from Anthropic or from an OpenAI-compatible service.
@@ -113,10 +113,14 @@ A tag like `v1.2.3` builds the signed release APK in CI and publishes it as a Gi
 
 Read [CONTRIBUTING.md](CONTRIBUTING.md) first. There are no test suites: changes are tried on real glasses, and a pull request says what was tried.
 
+Questions, ideas and reports of how Visor works on your pair go to [Discussions](https://github.com/macedonga/visor/discussions).
+
+[ACCESSIBILITY.md](ACCESSIBILITY.md) says what Visor does for accessibility, what it does not do yet, and how to report a problem.
+
 Report security problems privately, as [SECURITY.md](SECURITY.md) explains, not in a public issue.
 
 ## License
 
 Visor is free software under the [GNU Affero General Public License v3.0](LICENSE).
 
-Meta, Ray-Ban and Ray-Ban Meta are trademarks of their owners. Visor uses the names only to say which glasses it works with.
+Meta, Ray-Ban, Oakley, Ray-Ban Meta and Oakley Meta are trademarks of their owners. Visor uses the names only to say which glasses it works with.

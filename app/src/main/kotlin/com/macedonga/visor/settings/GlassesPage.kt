@@ -116,7 +116,7 @@ fun GlassesPage(open: (NavKey) -> Unit, model: GlassesPageModel = hiltViewModel(
     val stored = state.stored[NAME_KEY] ?: model.settings.value(NAME_KEY)
     val custom = stored?.takeIf { it.isNotBlank() && it != LEFTOVER_NAME }
     val name = custom ?: firstName?.let { stringResource(R.string.glasses_owned, it) }
-        ?: look?.styleName?.let { stringResource(R.string.glasses_default_named, it) } ?: stringResource(R.string.glasses_default_name)
+        ?: look?.styleName ?: stringResource(R.string.glasses_default_name)
     // An old build's write test named the pair; the name goes back to none, unannounced.
     LaunchedEffect(ready, state.stored[NAME_KEY]) {
         if (ready && state.stored[NAME_KEY] == LEFTOVER_NAME) model.settings.writeQuietly(NAME_KEY, "")

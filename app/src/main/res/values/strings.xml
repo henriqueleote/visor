@@ -15,7 +15,6 @@
     <string name="mood_charging">Charging</string>
     <string name="mood_recording">Recording</string>
     <string name="mood_low_battery">Battery low</string>
-    <string name="home_glasses_name">Ray-Ban Meta</string>
     <string name="home_reading_glasses">Glasses</string>
     <string name="home_reading_case">Case</string>
     <string name="home_allow_bluetooth">Allow Bluetooth</string>
@@ -438,9 +437,8 @@
 
     <string name="glasses_title">Glasses</string>
     <string name="glasses_owned">%s\'s glasses</string>
-    <string name="glasses_default_name">Ray-Ban Meta</string>
-    <string name="glasses_default_named">Ray-Ban Meta %s</string>
     <string name="pair_look_name">%1$s, %2$s</string>
+    <string name="glasses_default_name">Meta glasses</string>
     <string name="glasses_frame">Frame</string>
     <string name="glasses_color">Colour</string>
     <string name="glasses_lenses">Lenses</string>
@@ -612,6 +610,14 @@
     <string name="about_debug">Debug build</string>
     <string name="about_credits">Made with</string>
     <string name="about_foot">Each under its own licence.</string>
+    <string name="about_report">Report a problem</string>
+    <string name="about_discuss">Start a discussion</string>
+    <string name="about_star">Leave a star</string>
+    <string name="star_title">Enjoying Visor?</string>
+    <string name="star_text">Leave it a star on GitHub.</string>
+    <string name="star_ok">OK</string>
+    <string name="star_no">No</string>
+    <string name="star_never">Don\'t show again</string>
     <string name="about_sum_update">Visor %1$s, %2$s is out</string>
     <string name="update_channel">Updates</string>
     <string name="update_ready">Visor %1$s is out</string>
@@ -627,7 +633,7 @@
     <string name="live_problem_in_case">They are charging in their case, and there the glasses keep the camera off. Take them out to go live.</string>
 
     <!-- Onboarding -->
-    <string name="onboard_tagline">Your Ray-Ban Meta, run from this phone.</string>
+    <string name="onboard_tagline">Your Meta glasses, run from this phone.</string>
     <string name="onboard_begin">Begin</string>
     <string name="onboard_access_title">What Visor asks for</string>
     <string name="onboard_access_lede">Each one is for one thing. Only the first is needed to start.</string>

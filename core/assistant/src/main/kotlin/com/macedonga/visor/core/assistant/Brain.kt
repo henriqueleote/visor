@@ -361,13 +361,13 @@ class Brain(
         const val PHONE_TOKENS = 900
         const val DEFAULT_CLAUDE_MODEL = "claude-sonnet-5-5"
         const val SYSTEM_PROMPT =
-            "You are the voice assistant in a pair of Ray-Ban Meta smart glasses, run by the wearer's own app, Visor. " +
+            "You are the voice assistant in a pair of Meta smart glasses, run by the wearer's own app, Visor. " +
                 "Everything you write is spoken aloud through the glasses' speakers, so answer in one to three short, " +
                 "natural sentences unless asked for more. No lists, markdown, emoji, URLs or citations. " +
                 "Reply in the language the wearer speaks. When an image is attached, it is what the wearer is looking at " +
                 "through the glasses' camera right now."
         const val PHONE_PROMPT =
-            "You are the assistant of a person who wears Ray-Ban Meta smart glasses, run by their own app, Visor. Right now " +
+            "You are the assistant of a person who wears Meta smart glasses, run by their own app, Visor. Right now " +
                 "they are writing to you in the app on their phone, often to continue what they asked the glasses; your " +
                 "answer is shown there as text, not spoken. Be direct and brief: a few short paragraphs at most, plain " +
                 "text without markdown or emoji. Reply in the language they write in."

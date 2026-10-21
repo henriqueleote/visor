@@ -1,0 +1,44 @@
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Tell others how Visor works on your pair. One report per pair and firmware.
+        Remove serial numbers, Bluetooth addresses, tokens and API keys from everything you paste.
+  - type: input
+    id: glasses
+    attributes:
+      label: Glasses and firmware
+      placeholder: Ray-Ban Meta (Gen 2), 72387580077200100
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Visor version
+      description: Settings, About.
+    validations:
+      required: true
+  - type: input
+    id: phone
+    attributes:
+      label: Phone and Android version
+      placeholder: Pixel 9, Android 16
+    validations:
+      required: true
+  - type: checkboxes
+    id: works
+    attributes:
+      label: What works
+      options:
+        - label: Setup and pairing
+        - label: Connection and battery
+        - label: Photo and video import
+        - label: Live view
+        - label: Assistant ("Hey Meta")
+        - label: Notifications
+        - label: Settings
+  - type: textarea
+    id: problems
+    attributes:
+      label: What does not work
+      description: Open a bug report for each problem and link it here.

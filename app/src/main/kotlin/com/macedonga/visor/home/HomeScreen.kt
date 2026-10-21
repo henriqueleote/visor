@@ -128,6 +128,10 @@ import com.macedonga.visor.stage.turnsThePair
 import com.macedonga.visor.stage.variantsOf
 import com.macedonga.visor.ui.rememberHaptics
 import com.macedonga.visor.ui.rememberTrailingFold
+import com.macedonga.visor.update.REPO_URL
+import com.macedonga.visor.update.StarAsk
+import com.macedonga.visor.update.StarSheet
+import com.macedonga.visor.update.openLink
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
@@ -154,6 +158,7 @@ class HomeViewModel @Inject constructor(
     val pairs: Pairs,
     val band: com.macedonga.visor.band.BandLink,
     val bands: com.macedonga.visor.band.Bands,
+    val star: StarAsk,
 ) : ViewModel() {
     /** The LE link is up: the glasses are right here, whatever RFCOMM says. */
     val nearby = keeper.connected
@@ -598,6 +603,27 @@ fun HomeScreen(
             }
         }
     }
+
+    // Once in a while, a few seconds into Home, the ask for a star.
+    val starDue by model.star.due.collectAsStateWithLifecycle()
+    var starShown by remember { mutableStateOf(false) }
+    LaunchedEffect(paired) { if (paired == true) model.star.opened() }
+    LaunchedEffect(starDue) {
+        if (starDue) {
+            delay(STAR_DELAY_MS)
+            starShown = true
+        }
+    }
+    if (starShown && starDue) {
+        StarSheet(
+            onOk = {
+                openLink(context, REPO_URL)
+                model.star.never()
+            },
+            onNo = model.star::later,
+            onNever = model.star::never,
+        )
+    }
 }
 
 /**
@@ -639,3 +665,4 @@ private const val REFRESH_MS = 60_000L
 
 /** The home's page after the last pair, for setting up another. */
 private const val ADD_PAGE = "+"
+private const val STAR_DELAY_MS = 4_000L
