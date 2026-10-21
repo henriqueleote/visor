@@ -148,6 +148,7 @@ object ConnectionModule {
         panels: com.macedonga.visor.connection.Panels,
         bloks: com.macedonga.visor.connection.BloksRelay,
         location: com.macedonga.visor.connection.LocationShare,
+        messages: com.macedonga.visor.connection.PhoneMessages,
     ): SessionHostFactory = RealSessionHostFactory(
         transports,
         responders = mapOf(
@@ -164,6 +165,7 @@ object ConnectionModule {
             com.macedonga.visor.connection.Panels.SVC to panels,
             com.macedonga.visor.connection.BloksRelay.SVC to bloks,
             com.macedonga.visor.connection.LocationShare.SVC to location,
+            com.macedonga.visor.connection.PhoneMessages.SVC to messages,
             SVC_HEARING to Responder { message, mux -> hearing.get().respond(message, mux) },
             ServiceId.CONN_DEVICE_LEASE.value to Responder { message, mux -> lease.get().respond(message, mux) },
         ),

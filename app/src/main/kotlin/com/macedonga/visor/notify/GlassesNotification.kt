@@ -70,14 +70,16 @@ data class GlassesNotification(
                 }.toByteArray()
                 out.write(Wire.fieldBytes(12, foa))
             }
-            // Native and SMS: NativeMessageNotificationExtras {1 phone number, 7 threadId, 8 threadName, 12 senderName}.
+            // Native and SMS: NativeMessageNotificationExtras {1 phone number, 7 threadId, 8 threadName, 11 senderID,
+            // 12 senderName, 16 shared contact}. The Display's Messages app files it by threadId and senderID.
             3, 7 -> out.write(
                 Wire.fieldBytes(
                     13,
                     (if (senderId.isNotEmpty()) Wire.fieldBytes(1, senderId.toByteArray()) else ByteArray(0)) +
                         Wire.fieldBytes(7, threadId.ifEmpty { key }.toByteArray()) +
                         Wire.fieldBytes(8, (if (isGroup) groupName.ifEmpty { title } else sender.ifEmpty { title }).toByteArray()) +
-                        Wire.fieldBytes(12, sender.ifEmpty { title }.toByteArray()),
+                        (if (senderId.isNotEmpty()) Wire.fieldBytes(11, senderId.toByteArray()) else ByteArray(0)) +
+                        Wire.fieldBytes(12, sender.ifEmpty { title }.toByteArray()) + Wire.fieldVarint(16, 1),
                 ),
             )
         }

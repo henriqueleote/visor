@@ -566,6 +566,11 @@
     <string name="access_mic_why">To understand follow-ups and Live AI with the phone\'s recogniser. The phone\'s own microphone listens only while you hold the mic in Meta AI.</string>
     <string name="access_contacts">Contacts</string>
     <string name="access_contacts_why">So the glasses can say who a message is from.</string>
+    <string name="texts_photo">Photo</string>
+    <string name="texts_video">Video</string>
+    <string name="texts_attachment">Attachment</string>
+    <string name="access_sms">Text messages</string>
+    <string name="access_sms_why">So the glasses can show your texts and send one.</string>
     <string name="access_location">Location</string>
     <string name="access_location_why">To note where the glasses took each photo.</string>
     <string name="access_location_always">Location, all the time</string>

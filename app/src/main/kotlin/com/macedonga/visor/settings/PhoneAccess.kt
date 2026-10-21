@@ -46,6 +46,7 @@ enum class Need(val title: Int, val why: Int) {
     NOTIFY(R.string.access_notify, R.string.access_notify_why),
     MIC(R.string.access_mic, R.string.access_mic_why),
     CONTACTS(R.string.access_contacts, R.string.access_contacts_why),
+    SMS(R.string.access_sms, R.string.access_sms_why),
     LOCATION(R.string.access_location, R.string.access_location_why),
 
     /** Location while Visor is in the background: Android asks it on its own, once [LOCATION] is given. */
@@ -62,6 +63,7 @@ enum class Need(val title: Int, val why: Int) {
         NOTIFY -> context.allows(Manifest.permission.POST_NOTIFICATIONS)
         MIC -> context.allows(Manifest.permission.RECORD_AUDIO)
         CONTACTS -> context.allows(Manifest.permission.READ_CONTACTS)
+        SMS -> context.allows(Manifest.permission.READ_SMS) && context.allows(Manifest.permission.SEND_SMS)
         LOCATION -> context.allows(Manifest.permission.ACCESS_FINE_LOCATION)
         LOCATION_ALWAYS -> context.allows(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
         WIFI -> wifiDirectAllowed(context)
@@ -75,6 +77,7 @@ enum class Need(val title: Int, val why: Int) {
         NOTIFY -> arrayOf(Manifest.permission.POST_NOTIFICATIONS)
         MIC -> arrayOf(Manifest.permission.RECORD_AUDIO)
         CONTACTS -> arrayOf(Manifest.permission.READ_CONTACTS)
+        SMS -> arrayOf(Manifest.permission.READ_SMS, Manifest.permission.SEND_SMS)
         LOCATION -> arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION)
         // Android grants it only after the foreground one, so that one comes first when it is missing.
         LOCATION_ALWAYS -> if (context.allows(Manifest.permission.ACCESS_FINE_LOCATION)) arrayOf(Manifest.permission.ACCESS_BACKGROUND_LOCATION)

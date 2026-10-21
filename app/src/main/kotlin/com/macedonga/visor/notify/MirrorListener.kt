@@ -1,13 +1,18 @@
 package com.macedonga.visor.notify
 
+import android.Manifest
 import android.app.Notification
 import android.app.NotificationManager
+import android.app.Person
 import android.content.ComponentName
+import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.media.session.MediaController
 import android.media.session.MediaSessionManager
 import android.media.session.PlaybackState
+import android.net.Uri
+import android.provider.ContactsContract.CommonDataKinds.Phone
 import android.provider.Telephony
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
@@ -59,6 +64,9 @@ class MirrorListener : NotificationListenerService(), Messaging {
     @Inject
     lateinit var apps: NotifyApps
 
+    @Inject
+    lateinit var textReplies: TextReplies
+
     // Each conversation sent to the glasses, with the app's reply action, newest last.
     private val replyable = LinkedHashMap<String, Pair<Conversation, Notification.Action>>()
 
@@ -107,7 +115,9 @@ class MirrorListener : NotificationListenerService(), Messaging {
         val text = (extras.getCharSequence(Notification.EXTRA_BIG_TEXT) ?: extras.getCharSequence(Notification.EXTRA_TEXT))?.toString().orEmpty()
         val appName = runCatching { packageManager.getApplicationLabel(packageManager.getApplicationInfo(sbn.packageName, 0)).toString() }.getOrDefault(sbn.packageName)
         val r = Ranking()
-        PROVIDERS[sbn.packageName]?.let { provider ->
+        // The phone's texts, SMS or RCS, go as native messages, which the glasses' Messages app files by thread.
+        val sms = sbn.packageName == Telephony.Sms.getDefaultSmsPackage(this)
+        (if (sms) PROVIDER_NATIVE else PROVIDERS[sbn.packageName])?.let { provider ->
             message(sbn, provider, appName)?.let { m ->
                 deliver(m)
                 replyAction(n)?.let { action ->
@@ -169,6 +179,7 @@ class MirrorListener : NotificationListenerService(), Messaging {
     override fun onNotificationRemoved(sbn: StatusBarNotification) {
         // One held and not yet sent goes no further; one already on the glasses is removed.
         synchronized(held) { held.remove(sbn.key) }
+        textReplies.remove(sbn.key)
         val (provider, uuid) = mirrored.remove(sbn.key) ?: return
         val request = Wire.fieldBytes(1, sbn.key.toByteArray()) + Wire.fieldVarint(2, provider.toLong()) + Wire.fieldBytes(6, uuid.toByteArray())
         connection.submit { it.sendOnService(GlassesNotification.SVC, GlassesNotification.MT_REMOVE, request) }
@@ -213,13 +224,24 @@ class MirrorListener : NotificationListenerService(), Messaging {
             ?: (extras.getCharSequence(Notification.EXTRA_BIG_TEXT) ?: extras.getCharSequence(Notification.EXTRA_TEXT))?.toString().orEmpty()
         val time = last?.getLong("time")?.takeIf { it > 0 } ?: sbn.postTime
         if (text.isBlank()) return null
+        // A reply sent from the notification is added to it as the user's own message: not news for the glasses.
+        @Suppress("DEPRECATION")
+        val user = extras.getParcelable(Notification.EXTRA_MESSAGING_PERSON) as? Person
+        val fromMe = last != null && last.getCharSequence("sender") == null &&
+            (person == null || user != null && person.key == user.key && person.name == user.name)
+        if (fromMe) return null
         if (sentAt[sbn.key] == time) return null
         sentAt[sbn.key] = time
         while (sentAt.size > 300) sentAt.remove(sentAt.keys.first())
         val group = extras.getBoolean(Notification.EXTRA_IS_GROUP_CONVERSATION)
+        val native = provider == PROVIDER_NATIVE
+        // A text names its sender by number and its thread as the SMS store does, as svc70 lists them.
+        val number = if (native) person?.uri?.takeIf { it.startsWith("tel:") }?.let { Uri.decode(it.substringAfter("tel:")) } ?: numberOf(sender) else null
+        val thread = number?.takeIf { !group }?.let { runCatching { Telephony.Threads.getOrCreateThreadId(this, it).toString() }.getOrNull() }
+        if (thread != null) replyAction(sbn.notification)?.let { textReplies.put(thread, sbn.key, it) }
         return GlassesNotification(
             key = sbn.key,
-            pkg = sbn.packageName,
+            pkg = if (native) NATIVE_APP else sbn.packageName,
             appName = appName,
             title = sender,
             text = text,
@@ -227,11 +249,21 @@ class MirrorListener : NotificationListenerService(), Messaging {
             type = TYPE_INCOMING_MESSAGE,
             provider = provider,
             sender = sender,
-            senderId = person?.key ?: person?.uri?.substringAfter(':').orEmpty(),
-            threadId = sbn.notification.shortcutId ?: sbn.key,
+            senderId = number ?: person?.key ?: person?.uri?.substringAfter(':').orEmpty(),
+            threadId = thread ?: sbn.notification.shortcutId ?: sbn.key,
             isGroup = group,
             groupName = extras.getCharSequence(Notification.EXTRA_CONVERSATION_TITLE)?.toString().orEmpty(),
         )
+    }
+
+    /** A contact's number by their name, or the name itself when it is a number. */
+    private fun numberOf(name: String): String? {
+        if (name.isNotEmpty() && name.all { it.isDigit() || it in "+ -()" }) return name.filter { it.isDigit() || it == '+' }
+        if (checkSelfPermission(Manifest.permission.READ_CONTACTS) != PackageManager.PERMISSION_GRANTED) return null
+        return runCatching {
+            contentResolver.query(Phone.CONTENT_URI, arrayOf(Phone.NUMBER), "${Phone.DISPLAY_NAME} = ?", arrayOf(name), null)
+                ?.use { if (it.moveToFirst()) it.getString(0) else null }
+        }.getOrNull()
     }
 
     // The action that takes typed text: the app's own "Reply".
@@ -253,8 +285,7 @@ class MirrorListener : NotificationListenerService(), Messaging {
     private fun ready() = connection.state.value.link == LinkState.READY
 
     // The Meta app's filters: nothing ongoing, no group summaries, nothing empty or below default
-    // importance, and not the SMS app or the dialer, whose messages and calls reach the glasses by
-    // Bluetooth already.
+    // importance, and not the dialer, whose calls reach the glasses by Bluetooth already.
     private fun wanted(sbn: StatusBarNotification, ranking: RankingMap): Boolean {
         val n = sbn.notification
         if (sbn.packageName == packageName || sbn.packageName in SYSTEM) return false
@@ -263,7 +294,6 @@ class MirrorListener : NotificationListenerService(), Messaging {
         if (extras.getCharSequence(Notification.EXTRA_TITLE).isNullOrBlank() && extras.getCharSequence(Notification.EXTRA_TEXT).isNullOrBlank()) return false
         val r = Ranking()
         if (ranking.getRanking(sbn.key, r) && r.importance < NotificationManager.IMPORTANCE_DEFAULT) return false
-        if (sbn.packageName == Telephony.Sms.getDefaultSmsPackage(this)) return false
         if (sbn.packageName == getSystemService(TelecomManager::class.java)?.defaultDialerPackage) return false
         return true
     }
@@ -291,7 +321,11 @@ class MirrorListener : NotificationListenerService(), Messaging {
 
     companion object {
         private const val PROVIDER_MIRRORED = 8
+        private const val PROVIDER_NATIVE = 3
         private const val TYPE_INCOMING_MESSAGE = 1
+
+        // The app id the glasses take for the phone's own texts.
+        private const val NATIVE_APP = "com.android.sms"
 
         // The chat apps the glasses announce themselves, by their NotificationProvider.
         private val PROVIDERS = mapOf(

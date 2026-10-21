@@ -565,6 +565,11 @@
     <string name="access_mic_why">Per capire le domande successive e Live AI con il riconoscimento del telefono. Il microfono del telefono ascolta solo mentre tieni premuto il microfono in Meta AI.</string>
     <string name="access_contacts">Contatti</string>
     <string name="access_contacts_why">Così gli occhiali possono dire da chi arriva un messaggio.</string>
+    <string name="texts_photo">Foto</string>
+    <string name="texts_video">Video</string>
+    <string name="texts_attachment">Allegato</string>
+    <string name="access_sms">SMS</string>
+    <string name="access_sms_why">Così gli occhiali possono mostrare i tuoi SMS e inviarne uno.</string>
     <string name="access_location">Posizione</string>
     <string name="access_location_why">Per annotare dove gli occhiali hanno fatto ogni foto.</string>
     <string name="access_location_always">Posizione, sempre</string>

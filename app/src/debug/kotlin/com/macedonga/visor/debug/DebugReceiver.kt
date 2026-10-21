@@ -67,12 +67,15 @@ class DebugReceiver : BroadcastReceiver() {
     @Inject lateinit var login: com.macedonga.visor.login.MetaLogin
     @Inject lateinit var internet: com.macedonga.visor.connection.InternetSwitch
     @Inject lateinit var developer: com.macedonga.visor.outside.DeveloperMode
+    @Inject lateinit var texts: com.macedonga.visor.connection.PhoneMessages
 
     override fun onReceive(context: Context, intent: Intent) {
         val action = intent.action?.substringAfterLast('.').orEmpty()
         Log.i("Visor", "API: $action")
         when (action) {
             "STATUS" -> resultData = status()
+            // The phone's thread list as Visor reads it for the glasses' Messages: --ei count.
+            "THREADS" -> resultData = texts.describeThreads(intent.getIntExtra("count", 15))
             "DEMO_PAIR" -> resultData = demoPair(intent.getBooleanExtra("on", true))
             "CONNECT" -> resultData = runCatching { GlassesService.start(context); "connecting" }.getOrElse { "could not start the service: $it" }
             "DISCONNECT" -> {
@@ -122,8 +125,10 @@ class DebugReceiver : BroadcastReceiver() {
                     "refused: unknown namespace or not connected"
                 }
             }
-            // A notification built by hand: --ei type --ei provider --es title --es text --es sender --es pkg.
+            // A notification built by hand: --ei type --ei provider --es title --es text --es sender --es pkg --es thread
+            // (a text's thread in the SMS store, whose number becomes the sender's id).
             "NOTIFY" -> {
+                val thread = intent.getStringExtra("thread").orEmpty()
                 val n = com.macedonga.visor.notify.GlassesNotification(
                     key = "visor|" + System.currentTimeMillis(),
                     pkg = intent.getStringExtra("pkg") ?: "org.telegram.messenger",
@@ -134,7 +139,8 @@ class DebugReceiver : BroadcastReceiver() {
                     type = intent.getIntExtra("type", 1),
                     provider = intent.getIntExtra("provider", 3),
                     sender = intent.getStringExtra("sender").orEmpty(),
-                    senderId = intent.getStringExtra("sid").orEmpty(),
+                    senderId = intent.getStringExtra("sid") ?: texts.addressesOf(thread).firstOrNull().orEmpty(),
+                    threadId = thread,
                 )
                 connection.submit { it.sendOnService(com.macedonga.visor.notify.GlassesNotification.SVC, 1, n.envelope()) }
                 resultData = "sent type ${n.type} provider ${n.provider}"

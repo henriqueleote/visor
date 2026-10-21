@@ -93,6 +93,7 @@ private fun RequestRow(r: GlassesRequest) {
                 -1 -> stringResource(R.string.requests_tunnel)
                 -2 -> stringResource(R.string.requests_meta)
                 -3 -> stringResource(R.string.requests_location)
+                -4 -> stringResource(R.string.requests_sms)
                 else -> stringResource(R.string.requests_source, r.source)
             },
             r.options.ifEmpty { null },
