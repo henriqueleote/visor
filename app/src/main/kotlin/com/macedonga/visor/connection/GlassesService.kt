@@ -57,6 +57,9 @@ class GlassesService : Service() {
     lateinit var contacts: PhoneContacts
 
     @Inject
+    lateinit var sharing: PhoneSharing
+
+    @Inject
     lateinit var kind: LinkKind
 
     @Inject
@@ -130,6 +133,7 @@ class GlassesService : Service() {
             started = true
             connection.start(scope, targetFrom(intent))
             contacts.start(scope)
+            sharing.start(scope)
             moveToLe()
             holdLe()
             com.macedonga.visor.gallery.notePlaces(this, scope, connection, media.places)

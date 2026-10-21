@@ -7,6 +7,7 @@ import com.macedonga.visor.core.connection.GlassesLink
 import com.macedonga.visor.core.media.AirshipReceiver
 import com.macedonga.visor.core.media.ExtraFiles
 import com.macedonga.visor.core.media.NAMESPACE_SHARING
+import com.macedonga.visor.core.media.Offer
 import com.macedonga.visor.core.media.Received
 import com.macedonga.visor.core.protocol.Thrift
 import com.macedonga.visor.core.protocol.ThriftWriter
@@ -306,8 +307,10 @@ class Assistant(
 
     init {
         // The assistant's photo comes over airship, in a namespace the media import refuses.
-        airship.extra = object : ExtraFiles {
-            override fun wants(namespace: String, size: Long): Boolean {
+        airship.extras += object : ExtraFiles {
+            override fun wants(offer: Offer): Boolean {
+                val namespace = offer.namespace
+                val size = offer.size
                 val waiting = pending != null && size < 20_000_000 ||
                     namespace == NAMESPACE_SHARING && store.config.value.enabled && size < EARLY_MAX_BYTES
                 if (waiting) say("Taking ${size / 1000} KB in namespace \"$namespace\" for the photo")
