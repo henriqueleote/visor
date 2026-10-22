@@ -38,8 +38,8 @@ sealed interface Gate {
 }
 
 // Meta Ray-Ban Display, whose image has no hearingservice.
-private const val DISPLAY = 259
-private val NO_HEARING_SERVICE = setOf(DISPLAY)
+private val DISPLAY = setOf(259, 270, 271)
+private val NO_HEARING_SERVICE = DISPLAY
 
 // The hearing service starts focus only above the minimum build MobileConfig gives this model (libhearing's
 // getDeviceTypeMinSoCVersion); -1 or none, as on glasses Meta never configured, is INVALID_DEVICE.
@@ -103,7 +103,7 @@ enum class Feature(
         ),
         Topic.HEARING,
         // The Display ships neither aurachat nor the group app.
-        absentOn = setOf(DISPLAY),
+        absentOn = DISPLAY,
     ),
     // The glasses' TAR gate (isSgAlarmMCEnabled); Visor's timer service keeps the alarms Meta's app refuses.
     ALARMS(

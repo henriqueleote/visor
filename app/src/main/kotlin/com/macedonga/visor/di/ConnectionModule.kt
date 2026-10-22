@@ -161,6 +161,8 @@ object ConnectionModule {
             SVC_TAR to timers,
             GlassesNotification.SVC to icons,
             com.macedonga.visor.connection.InternetSwitch.SVC to internet,
+            com.macedonga.visor.connection.InternetSwitch.PING_SVC to internet.ping,
+            com.macedonga.visor.connection.MotionActivity.SVC to com.macedonga.visor.connection.MotionActivity,
             com.macedonga.visor.connection.DataFetcher.SVC to fetcher,
             com.macedonga.visor.connection.PhoneInternet.SVC to tunnel,
             com.macedonga.visor.connection.Panels.SVC to panels,

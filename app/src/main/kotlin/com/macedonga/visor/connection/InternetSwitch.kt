@@ -48,6 +48,13 @@ class InternetSwitch @Inject constructor(
         watchNetwork()
     }
 
+    /** svc76, wearables_ping: a ping (type 1) is answered with PingResult {1 hasInternet} (type 2). */
+    val ping = Responder { message, mux ->
+        if (message.info.messageType != MT_PING || message.info.flags.isClosed) return@Responder
+        val online = phoneInternet().connected
+        mux.send(DataXConnection.mirror(message.info.channelId), Wire.fieldVarint(1, if (online) 1 else 0), messageType = MT_PING_RESULT)
+    }
+
     /** From the first question on, every change of the phone's network goes to the Display while it is connected. */
     private fun watchNetwork() {
         if (!watching.compareAndSet(false, true)) return
@@ -86,5 +93,8 @@ class InternetSwitch @Inject constructor(
         const val SVC = 41108
         private const val MT_COMPANION_STATE = 3
         private const val MT_LISTEN = 6
+        const val PING_SVC = 76
+        private const val MT_PING = 1
+        private const val MT_PING_RESULT = 2
     }
 }

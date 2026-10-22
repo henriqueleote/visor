@@ -267,6 +267,15 @@ class GlassesSession(
             mux.sendStatus(DataXConnection.mirror(info.channelId), SERVICE_NOT_FOUND)
         }
 
+        // svc4, connection_monitor: the glasses' delivery check (type 0, a counter) is confirmed with a bare OK status.
+        if (serviceId == CONNECTION_MONITOR &&
+            (info.channelId and 0x8000) != 0 &&
+            !info.flags.hasError &&
+            !info.flags.isClosed
+        ) {
+            mux.sendStatus(DataXConnection.mirror(info.channelId), OK)
+        }
+
         val responder = responders[serviceId]
         if (responder != null && !info.flags.hasError) {
             try {
@@ -392,12 +401,17 @@ class GlassesSession(
 
         private val BACKOFF_MILLIS = longArrayOf(1_000, 2_000, 4_000, 8_000)
 
-        /** 0x1000 is the DataX success status every service answers with. */
+        /** 0x1000 is the success status svc36 answers with; DataX's own is [OK]. */
         private const val SUCCESS = 0x1000
 
         /** DataX service_not_found: what a peer answers for a service it does not host. */
         private const val SERVICE_NOT_FOUND = 0xC001
 
         private val REFUSED_PEER_SERVICES = setOf(30, 79)
+
+        /** DataX OK, the status a delivery check is confirmed with. */
+        private const val OK = 0
+
+        private const val CONNECTION_MONITOR = 4
     }
 }
