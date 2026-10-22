@@ -56,6 +56,8 @@ Display:
 - Captions and translation turn on only through a svc29 pack install and FEATURE_CHANGE. The same
   pack on airship `language_resource` turns nothing on.
 - Each Meta `/login` exchange ends the older sessions. Keep one token per run.
+- With an Android phone the music screen ignores AVRCP cover art. The cover comes only over svc9012.
+- The Phone app's recent calls wait on svc70 type 11, once per provider. svc11006 does not fill them.
 
 ## Build
 
