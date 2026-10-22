@@ -45,6 +45,7 @@ import kotlinx.coroutines.withTimeoutOrNull
  * is one; any other goes as SMS, answered once the radio has sent it. Each request comes on a channel of its own and
  * is answered with its own type; a reply over 1000 bytes goes as type-32 chunks when the request allows them. Texts
  * that arrive reach the glasses as native notifications, from the SMS app's own notifications (see MirrorListener).
+ * The Phone app's recent calls (type 11) come on this service too; [PhoneCalls] answers them.
  *
  * The RCS chats Google Messages files as MMS are marked restricted, and Android shows those rows only to the default
  * SMS app: a chat with nothing else in it is missing from the list here.
@@ -55,6 +56,7 @@ class PhoneMessages @Inject constructor(
     private val requests: RequestLog,
     private val log: Provider<EventLog>,
     private val replies: TextReplies,
+    private val calls: PhoneCalls,
 ) : Responder {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO + CoroutineExceptionHandler { _, e -> log.get().add("Messages: failed: $e") })
 
@@ -63,6 +65,8 @@ class PhoneMessages @Inject constructor(
         val request = runCatching { Wire.parse(message.payload) }.getOrNull() ?: return
         val type = message.info.messageType
         val reply = DataXConnection.mirror(message.info.channelId)
+        // The Phone app's recent calls, asked once per provider, each waiting for its answer.
+        if (type == MT_LOAD_CALL_LOG) return calls.loadCallLog(request, reply, connection)
         if (type !in SERVED) return log.get().add("Messages: type $type not served")
         // Only the phone's texts; the other providers are the Meta app's.
         val provider = request.varint(1)
@@ -346,6 +350,7 @@ class PhoneMessages @Inject constructor(
         private const val MT_LOAD_THREADS = 1
         private const val MT_LOAD_MESSAGES = 2
         private const val MT_OUTGOING = 8
+        private const val MT_LOAD_CALL_LOG = 11
         private const val MT_CHUNK = 32
         private val SERVED = setOf(MT_LOAD_THREADS, MT_LOAD_MESSAGES, MT_OUTGOING)
         private const val NATIVE = 3L

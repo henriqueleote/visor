@@ -8,4 +8,5 @@
     <string name="requests_tunnel">tunnel</string>
     <string name="requests_meta">Meta</string>
     <string name="requests_location">posizione</string>
+    <string name="requests_calls">chiamate</string>
 </resources>

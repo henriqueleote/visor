@@ -9,4 +9,5 @@
     <string name="requests_meta">Meta</string>
     <string name="requests_location">location</string>
     <string name="requests_sms">SMS</string>
+    <string name="requests_calls">calls</string>
 </resources>

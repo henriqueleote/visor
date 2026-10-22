@@ -570,6 +570,8 @@
     <string name="texts_attachment">Allegato</string>
     <string name="access_sms">SMS</string>
     <string name="access_sms_why">Così gli occhiali possono mostrare i tuoi SMS e inviarne uno.</string>
+    <string name="access_calls">Registro chiamate</string>
+    <string name="access_calls_why">Così gli occhiali possono mostrare le tue chiamate recenti.</string>
     <string name="access_location">Posizione</string>
     <string name="access_location_why">Per annotare dove gli occhiali hanno fatto ogni foto.</string>
     <string name="access_location_always">Posizione, sempre</string>

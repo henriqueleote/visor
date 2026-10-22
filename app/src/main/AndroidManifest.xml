@@ -33,6 +33,7 @@
     <!-- The glasses' Messages app and "send a text" read and send the phone's SMS. -->
     <uses-permission android:name="android.permission.READ_SMS" />
     <uses-permission android:name="android.permission.SEND_SMS" />
+    <uses-permission android:name="android.permission.READ_CALL_LOG" />
     <!-- The phone's speech recogniser requires it, though Visor hands it the glasses' microphone, never the phone's. -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />

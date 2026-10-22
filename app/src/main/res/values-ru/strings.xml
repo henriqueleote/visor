@@ -561,6 +561,8 @@
     <string name="texts_attachment">Вложение</string>
     <string name="access_sms">SMS</string>
     <string name="access_sms_why">Чтобы очки могли показывать ваши SMS и отправлять их.</string>
+    <string name="access_calls">Журнал звонков</string>
+    <string name="access_calls_why">Чтобы очки могли показывать ваши недавние звонки.</string>
     <string name="access_location">Местоположение</string>
     <string name="access_location_why">Чтобы отмечать, где очки сделали каждое фото.</string>
     <string name="access_location_always">Местоположение всегда</string>
