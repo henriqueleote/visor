@@ -148,10 +148,15 @@ internal fun varm(interactionId: String, transcript: String, text: String, onGla
 }
 
 /**
- * ev60 MwaVoiceInteractionComplete with a fulfillmentResult the glasses speak themselves: ttsMessage, fulfillment
- * type 1 (server), requiresAnswer when they should listen for a reply, and nothing streaming. Status 1000 is success.
+ * ev60 MwaVoiceInteractionComplete, which ends the turn: ttsMessage, fulfillment type 1 (server), requiresAnswer when
+ * they should listen for a reply, shouldSmartFollowUp (11) when they may listen for another question. With [streamed]
+ * false the glasses speak the text themselves; true marks it as already played from the stream (7 and 8).
+ * Status 1000 is success.
  */
-internal fun interactionComplete(interactionId: String, text: String, expectsAnswer: Boolean = false): ByteArray {
-    val result = ThriftWriter().str(1, text).i32(2, 1).bool(3, expectsAnswer).bool(4, false).bool(7, false).bool(8, false).done()
+internal fun interactionComplete(
+    interactionId: String, text: String, expectsAnswer: Boolean = false, followUp: Boolean = false, streamed: Boolean = false,
+): ByteArray {
+    val result = ThriftWriter().str(1, text).i32(2, 1).bool(3, expectsAnswer).bool(4, false).bool(7, streamed).bool(8, streamed)
+        .bool(11, followUp).done()
     return ThriftWriter().str(1, interactionId).i32(2, 1000).str(3, "").struct(4, result).done()
 }

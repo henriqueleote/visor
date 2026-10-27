@@ -37,6 +37,11 @@ sealed interface Gate {
     data class Setting(val key: String, val on: String, val off: String? = null) : Gate
 }
 
+// Ray-Ban Meta (2023), Oakley Meta HSTN and Ray-Ban Meta Gen 2 share one DSP (hammerhead-rt600). Its hearing pipeline
+// has one output channel, while the hearing service always sends a left and a right gain map: the right one is
+// refused and hearing correction never starts (#42). Meta's app offers it on none of them.
+private val ONE_CHANNEL_HEARING = setOf(258, 265, 266)
+
 // The hearing service starts focus only above the minimum build MobileConfig gives this model (libhearing's
 // getDeviceTypeMinSoCVersion); -1 or none, as on glasses Meta never configured, is INVALID_DEVICE.
 private val FOCUS_FLOORS =
@@ -64,6 +69,8 @@ enum class Feature(
     val topic: Topic,
     /** Its own page, for a feature with more to set than on and off. */
     val page: Boolean = false,
+    /** Products it cannot run on. */
+    val absentOn: Set<Int> = emptySet(),
 ) {
     // getHasCFAccess reads cf_enabled unless conversation_focus_use_eap_settings is on; without Meta's value it is
     // false, NO_ACCESS, and the glasses ask for early access.
@@ -83,6 +90,7 @@ enum class Feature(
         ),
         Topic.HEARING,
         page = true,
+        absentOn = ONE_CHANNEL_HEARING,
     ),
     // The group app's MainActivity finishes unless the first two are on; enable_aurachat starts aurachat through
     // sysprop_map. Without Meta's signed key material the group key is AurachatKeyManager's all-zero DEBUG_KEY.
@@ -121,6 +129,9 @@ enum class Feature(
 
     /** The gates for glasses whose build names [device]. */
     fun gatesFor(device: String?): List<Gate> = gates.filter { it !is Gate.Config || it.device == null || it.device == device }
+
+    /** Whether [product] has it at all; unknown glasses are given the benefit. */
+    fun on(product: Int?): Boolean = product == null || product !in absentOn
 
     companion object {
         fun byId(id: String): Feature? = entries.firstOrNull { it.id == id }

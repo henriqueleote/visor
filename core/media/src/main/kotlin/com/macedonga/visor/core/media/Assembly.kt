@@ -30,6 +30,8 @@ class Assembly(
     private val onSaved: (String) -> Unit,
     /** A capture that could not be saved, and why. Its pieces stay for the next try. */
     private val onFailed: (String, String) -> Unit,
+    /** Whether a video this size came out of the glasses' own stabilization. */
+    private val steadiedOnGlasses: (Int, Int) -> Boolean,
 ) {
     private val staging = File(context.filesDir, "staging")
     private val scratch = File(context.cacheDir, "develop")
@@ -46,7 +48,10 @@ class Assembly(
         val name = partName(capture, assetId) ?: return
         val dir = File(staging, capture.handle).apply { mkdirs() }
         file.copyTo(File(dir, name), overwrite = true)
-        File(dir, META).writeText(JSONObject().put("type", capture.type.name).put("takenAt", capture.takenAtMillis ?: System.currentTimeMillis()).toString())
+        File(dir, META).writeText(
+            JSONObject().put("type", capture.type.name).put("takenAt", capture.takenAtMillis ?: System.currentTimeMillis())
+                .put("landscape", capture.landscape).put("steadiness", capture.steadiness).toString(),
+        )
         if (capture.wanted.mapNotNull { partName(capture, it.id) }.any { !File(dir, it).exists() }) return
         queue.trySend { safely(dir) }
     }
@@ -85,19 +90,27 @@ class Assembly(
         val handle = dir.name
         val type = CaptureType.valueOf(meta.getString("type"))
         val takenAt = meta.getLong("takenAt")
+        val landscape = meta.optBoolean("landscape")
         val place = places.near(takenAt)
         val keep = index.originals(handle).apply { mkdirs() }
         val main = File(dir, MAIN)
         var format = if (type == CaptureType.VIDEO) Format.MP4 else Format.JPEG
         val kept = when (type) {
             CaptureType.VIDEO -> {
-                val (uri, where) = insert(format, takenAt) { out -> main.inputStream().use { it.copyTo(out) } }
-                say("Saved a video: $where")
+                val made = File(scratch, "$handle.mp4").apply { parentFile?.mkdirs() }
+                val finished = finished(dir, main, made, handle, landscape, meta.optInt("steadiness"))
+                val (uri, where) = try {
+                    insert(format, takenAt) { out -> (if (finished != null) made else main).inputStream().use { it.copyTo(out) } }
+                } finally {
+                    made.delete()
+                }
+                val what = listOfNotNull("steadied".takeIf { finished?.steadied == true }, "landscape".takeIf { finished?.landscape == true })
+                say("Saved a ${(what + "video").joinToString(" ")}: $where")
                 Kept(handle, uri.toString(), type, takenAt, lat = place?.lat, lon = place?.lon)
             }
             else -> {
                 main.copyTo(File(keep, STILL), overwrite = true)
-                runCatching { developed(dir, handle, type, takenAt, place) }.getOrElse { error ->
+                runCatching { developed(dir, handle, type, takenAt, place, landscape) }.getOrElse { error ->
                     // A photo this phone cannot develop still goes to the gallery, as the glasses' own HEIC.
                     say("Could not develop ${handle.take(8)} (${error.message}): saving the HEIC as it came")
                     format = Format.HEIC
@@ -122,12 +135,14 @@ class Assembly(
     }
 
     /** A photo or live photo as the gallery keeps it: a JPEG, with the clip after it for a live photo. */
-    private fun developed(dir: File, handle: String, type: CaptureType, takenAt: Long, place: Place?): Kept {
+    private fun developed(dir: File, handle: String, type: CaptureType, takenAt: Long, place: Place?, landscape: Boolean): Kept {
         val main = File(dir, MAIN)
-        val bitmap = decodeStill(main)
+        val whole = decodeStill(main)
         val motion = File(dir, MOTION).takeIf { type == CaptureType.LIVE && it.exists() }
         val frames = readFrames(File(dir, FRAMES)).orEmpty()
-        val key = motion?.let { matchFrame(it, bitmap) }
+        // The clip is matched against the whole frame, which it shows.
+        val key = motion?.let { matchFrame(it, whole) }
+        val bitmap = if (landscape) Landscape.crop(whole).also { if (it !== whole) whole.recycle() } else whole
         val jpeg = try {
             jpegWithExif(bitmap, main, takenAt, place, File(scratch, "$handle.jpg"))
         } finally {
@@ -142,12 +157,20 @@ class Assembly(
         }
         val bytes = if (motion != null) motionPhoto(jpeg, motion.readBytes(), keyUs) else jpeg
         val (uri, where) = insert(Format.JPEG, takenAt) { it.write(bytes) }
-        say(if (motion != null) "Saved a live photo: $where" else "Saved a photo: $where")
+        val what = if (motion != null) "live photo" else "photo"
+        say(if (landscape) "Saved a landscape $what: $where" else "Saved a $what: $where")
         return Kept(
             handle, uri.toString(), if (motion != null) CaptureType.LIVE else CaptureType.PHOTO, takenAt,
             clipBytes = motion?.length() ?: 0, keyFrameUs = keyUs, shutterNs = shutterNs, lat = place?.lat, lon = place?.lon,
         )
     }
+
+    /** The video steadied or cut to landscape into [made], or null to keep it as it came: nothing to do, or this phone could not. */
+    private fun finished(dir: File, main: File, made: File, handle: String, landscape: Boolean, steadiness: Int): Finished? =
+        runCatching { finishVideo(context, main, made, File(dir, IMU), File(dir, FRAMES), steadiness, landscape, steadiedOnGlasses) }.getOrElse {
+            say("Could not steady or crop ${handle.take(8)} (${it.message}): saving it as it came")
+            null
+        }
 
     private enum class Format(val ext: String, val mime: String, val video: Boolean) {
         JPEG("jpg", "image/jpeg", false),

@@ -259,7 +259,8 @@
     <string name="live_stopped_battery">Очки отключили камеру: низкий заряд батареи</string>
     <string name="live_stopped_folded">Очки отключили камеру: их сложили</string>
     <string name="settings_notifications">Уведомления на очках</string>
-    <string name="settings_notifications_sub">Уведомления телефона, которые зачитывают очки. Если выключено, Visor их не отправляет.</string>
+    <string name="settings_notifications_sub">Уведомления телефона, которые Visor отправляет на очки. Если выключено, Visor их не отправляет.</string>
+    <string name="settings_notifications_sub_chat">Сообщения из чатов телефона, которые зачитывают очки. Если выключено, Visor их не отправляет.</string>
     <string name="language_title">Язык</string>
     <string name="language_voice">Голос</string>
     <string name="language_voice_is">Голос · %1$s</string>
@@ -511,6 +512,8 @@
     <string name="ai_vision_sub">Для вопросов о том, на что вы смотрите.</string>
     <string name="ai_web">Искать в интернете</string>
     <string name="ai_web_sub">Claude ищет информацию, когда это нужно. Медленнее.</string>
+    <string name="ai_quiet_actions">Тишина после действий</string>
+    <string name="ai_quiet_actions_sub">Без голосового ответа, если все действия выполнены.</string>
     <string name="ai_memory_window">Разговор остаётся открытым</string>
     <string name="ai_memory_window_sub">После последнего вопроса, чтобы следующий вопрос продолжил его.</string>
     <string name="ai_minutes">%1$d мин</string>
@@ -874,7 +877,7 @@
     <string name="hc_now_untested">Не настроено</string>
     <string name="hc_now_untested_sub">Пройдите тест слуха ниже.</string>
     <string name="hc_now_on_sub">Воспроизводятся звуки вокруг вас с учётом вашего слуха.</string>
-    <string name="hc_refused_chip">Аудиочип очков отклонил профиль правого уха.</string>
+    <string name="hc_refused_chip">Аудиочип очков не принял профиль слуха.</string>
     <string name="hc_now_off_sub">Запустите здесь.</string>
     <string name="hc_amplification">Усиление</string>
     <string name="hc_sharpness">Чёткость</string>

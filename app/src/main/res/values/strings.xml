@@ -244,7 +244,8 @@
     <string name="live_stopped_battery">The glasses stopped the camera: the battery is low</string>
     <string name="live_stopped_folded">The glasses stopped the camera: they were folded</string>
     <string name="settings_notifications">Notifications on the glasses</string>
-    <string name="settings_notifications_sub">The phone\'s notifications, read out by the glasses. Off, Visor sends them none.</string>
+    <string name="settings_notifications_sub">The phone\'s notifications, sent to the glasses. Off, Visor sends them none.</string>
+    <string name="settings_notifications_sub_chat">Chat messages from the phone, read out by the glasses. Off, Visor sends them none.</string>
     <string name="language_title">Language</string>
     <string name="language_voice">Voice</string>
     <string name="language_voice_is">Voice · %1$s</string>
@@ -499,6 +500,8 @@
     <string name="ai_vision_sub">For questions about what you are looking at.</string>
     <string name="ai_web">Search the web</string>
     <string name="ai_web_sub">Claude looks things up when it needs to. Slower.</string>
+    <string name="ai_quiet_actions">Quiet after actions</string>
+    <string name="ai_quiet_actions_sub">No spoken answer when every action worked.</string>
     <string name="ai_memory_window">A conversation stays open</string>
     <string name="ai_memory_window_sub">After the last question, so a follow-up continues it.</string>
     <string name="ai_minutes">%1$d min</string>
@@ -875,7 +878,7 @@
     <string name="hc_now_untested">Not set up</string>
     <string name="hc_now_untested_sub">Take the hearing test below.</string>
     <string name="hc_now_on_sub">Playing the sound around you, set to your hearing.</string>
-    <string name="hc_refused_chip">The glasses\' audio chip refused the right ear\'s profile.</string>
+    <string name="hc_refused_chip">The glasses\' audio chip did not take the hearing profile.</string>
     <string name="hc_now_off_sub">Start it here.</string>
     <string name="hc_amplification">Amplification</string>
     <string name="hc_sharpness">Sharpness</string>
@@ -931,4 +934,6 @@
     <string name="live_problem_vpn">A VPN keeps Visor off the glasses\' network. Exclude Visor from it.</string>
     <string name="live_drops">The stream keeps dropping</string>
     <string name="live_use_glasses_host">Use the glasses\' Wi-Fi</string>
+    <string name="ai_speech_language">Language you speak</string>
+    <string name="ai_speech_language_glasses">The glasses\' language</string>
 </resources>

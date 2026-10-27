@@ -32,15 +32,18 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.merge
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -91,8 +94,8 @@ class MediaImport(
     /** Handles being imported now or waiting their turn. */
     val inFlight: StateFlow<Set<String>> = _inFlight.asStateFlow()
 
-    // Asked for while another import ran: they go next.
-    private val queued = java.util.Collections.synchronizedSet(LinkedHashSet<String>())
+    // Asked for while another import ran: they go next. Guarded by this, with running and inFlight's additions.
+    private val queued = LinkedHashSet<String>()
 
     // The import running, and when it last said or received anything.
     @Volatile
@@ -104,6 +107,14 @@ class MediaImport(
 
     /** What each capture brought to this phone became, and its originals. */
     val index = GalleryIndex(context)
+
+    /** What is on the glasses and not on this phone, nor deleted from it: what "import all new" brings. */
+    val fresh: StateFlow<List<Capture>> = combine(captures, index.entries, index.dismissed) { list, kept, dismissed ->
+        list.filter { it.isNew && it.isMedia && it.handle !in kept && it.handle !in dismissed }
+    }.stateIn(scope, SharingStarted.Eagerly, emptyList())
+
+    // Deletes asked for on this Bluetooth session, so a second listing does not ask again.
+    private val deleteAsked = java.util.Collections.synchronizedSet(HashSet<String>())
 
     /** Where the phone was when the glasses took something. */
     val places = PlaceLog(context)
@@ -124,8 +135,10 @@ class MediaImport(
             _inFlight.update { it - handle }
             // A problem about captures that have now arrived is no longer one.
             _problem.update { p -> p?.copy(handles = p.handles - handle)?.takeIf { it.handles.isNotEmpty() } }
+            deleteFromGlasses(handle)
         },
         onFailed = { handle, why -> report(handle, ImportProblem.Kind.NOT_SAVED, why) },
+        steadiedOnGlasses = { w, h -> steadiedOnGlasses(w, h) },
     )
 
     /** [handle] is no longer coming: it joins the problem on show, or starts one of [kind]. */
@@ -184,6 +197,7 @@ class MediaImport(
                 when (link) {
                     LinkState.READY -> {
                         previewsAsked.clear()
+                        deleteAsked.clear()
                         refresh()
                     }
                     LinkState.LOST, LinkState.DISCONNECTED -> if (!onWifi) receiver.abandon()
@@ -227,16 +241,36 @@ class MediaImport(
     private var following: Set<String>? = null
 
     fun importAllNew() {
-        val fresh = captures.value.filter { it.isNew && it.isMedia }
+        val fresh = captures.value.filter(::isFresh)
         following = fresh.map { it.handle }.toSet()
         import(fresh)
+    }
+
+    private fun isFresh(c: Capture) =
+        c.isNew && c.isMedia && c.handle !in index.entries.value && c.handle !in index.dismissed.value
+
+    /**
+     * Delete from the glasses what is on this phone, as the Meta app does once it has a capture, and what the person
+     * deleted here. Each handle once per Bluetooth session; dropped while Wi-Fi has the glasses, so the listing after
+     * catches up.
+     */
+    private fun deleteFromGlasses(handle: String) {
+        if (!deleteAsked.add(handle)) return
+        connection.submit { deleteCapture(it, handle) }
+    }
+
+    /** The glasses no longer have [handle]: it leaves the list, and its preview this phone. */
+    private fun gone(handle: String) {
+        val capture = _captures.value.firstOrNull { it.handle == handle } ?: return
+        _captures.update { list -> list.filter { it.handle != handle } }
+        capture.preview?.let { p -> _previews.value[p.id]?.delete(); _previews.update { it - p.id } }
     }
 
     /** After an "import all new", what was taken while it ran is imported too, each capture once. */
     private fun followUp() {
         val asked = following ?: return
         if (_importing.value) return
-        val more = captures.value.filter { it.isNew && it.isMedia && it.handle !in asked }
+        val more = captures.value.filter { isFresh(it) && it.handle !in asked }
         following = if (more.isEmpty()) null else asked + more.map { it.handle }
         if (more.isEmpty()) return
         say("${more.size} more taken meanwhile")
@@ -245,8 +279,8 @@ class MediaImport(
 
     fun import(captures: List<Capture>) {
         if (captures.isEmpty()) return
-        _inFlight.update { it + captures.map { c -> c.handle } }
         synchronized(this) {
+            _inFlight.update { it + captures.map { c -> c.handle } }
             val busy = running?.isActive == true
             // One that has said and received nothing for this long is waiting on an answer that will not come: it
             // gives way, instead of queueing every later import behind it in silence.
@@ -318,18 +352,30 @@ class MediaImport(
             // A capture whose photo or video is here stays in flight until it is put together. One without it keeps
             // its pieces for the next import, but is no longer coming.
             _inFlight.update { it - captures.map { c -> c.handle }.filterNot(assembly::waiting).toSet() }
-            // One that gave way leaves the flag and the queue to the import that replaced it.
-            if (running === self) {
+            // One that gave way leaves the flag and the queue to the import that replaced it. Nothing queued, only
+            // what is being put together is still on its way.
+            val next = synchronized(this) {
+                if (running !== self) return@synchronized emptySet<String>()
+                running = null
                 _importing.value = false
-                val next = synchronized(queued) { queued.toList().also { queued.clear() } }
-                if (next.isNotEmpty()) import(this@MediaImport.captures.value.filter { it.handle in next })
+                val queuedNow = queued.toSet().also { queued.clear() }
+                if (queuedNow.isEmpty()) _inFlight.update { it.filterTo(HashSet(), assembly::waiting) }
+                queuedNow
+            }
+            if (next.isNotEmpty()) {
+                val more = this@MediaImport.captures.value.filter { it.handle in next }
+                _inFlight.update { it - (next - more.map { c -> c.handle }.toSet()) }
+                import(more)
             }
         }
     }
 
     /** Let go of an import in flight, Bluetooth back as it was: the setup needs the glasses to itself. */
     suspend fun stop() {
-        queued.clear()
+        synchronized(this) {
+            _inFlight.update { it - queued }
+            queued.clear()
+        }
         running?.cancelAndJoin()
     }
 
@@ -458,8 +504,21 @@ class MediaImport(
                 }
             }
             MT_LIST_DONE -> {
+                val kept = index.entries.value
+                val dismissed = index.dismissed.value
+                for (c in captures.value) if (c.handle in kept || c.handle in dismissed) deleteFromGlasses(c.handle)
                 fetchPreviews()
                 followUp()
+            }
+            MT_DELETE_OK -> data.payload.decodeToString().trimEnd('\u0000').let { handle ->
+                gone(handle)
+                say("Deleted ${handle.take(8)} from the glasses")
+            }
+            // "<handle>:<reason>"; a capture they no longer have is as good as deleted.
+            MT_DELETE_FAIL -> data.payload.decodeToString().trimEnd('\u0000').split(':').let { parts ->
+                val reason = parts.drop(1).joinToString(":").trim()
+                if (reason.contains("No such capture")) gone(parts[0])
+                else say("The glasses kept ${parts[0].take(8)}: ${reason.ifEmpty { "no reason given" }}")
             }
             MT_ASSET_GONE -> say("The glasses could not send a preview")
             MT_LINK_CHANGE_OK -> say("The glasses queued ${data.payload.decodeToString().take(8)}")
@@ -471,6 +530,20 @@ class MediaImport(
     /** Gets each bug report zip before it goes to Download/Visor. */
     @Volatile
     var bugReportReader: ((java.io.File) -> Unit)? = null
+
+    /**
+     * Whether a video this size came out of the glasses' own two-stage stabilization; any other is steadied on the phone.
+     * The app sets it from the glasses' settings; this is their default output.
+     */
+    @Volatile
+    var steadiedOnGlasses: (Int, Int) -> Boolean = { w, h -> minOf(w, h) == 1512 && maxOf(w, h) == 2016 }
+
+    /** [input] steadied or cut as an import would, into [output], with the logs kept for [handle]: for checking by hand. */
+    fun finishAgain(input: java.io.File, handle: String, output: java.io.File, landscape: Boolean, steadiness: Int): String {
+        val logs = index.originals(handle)
+        val done = finishVideo(context, input, output, java.io.File(logs, Assembly.IMU), java.io.File(logs, Assembly.FRAMES), steadiness, landscape, steadiedOnGlasses)
+        return done?.let { "steadied ${it.steadied}, landscape ${it.landscape}" } ?: "nothing to do"
+    }
 
     /**
      * Ask the glasses for a bug report, the way the Meta app does: svc7006 REQUEST_BUG_REPORT. The zip

@@ -61,7 +61,7 @@ private fun sectionsOf(topic: Topic): List<Pair<Int?, List<String>>> = when (top
     )
     Topic.CAMERA -> listOf(
         R.string.section_video to listOf(
-            "resolution_and_framerate", "eis_mode", "video_duration_ms", "capture_aspect_ratio", "landscape_mode_enabled", "motion_blur_reduction_enabled",
+            "resolution_and_framerate", "eis_mode", "video_duration_ms", "capture_aspect_ratio", "motion_blur_reduction_enabled",
         ),
         R.string.section_picture to listOf(
             "quick_clips_photo_capture_enabled", "media_auto_leveling_enabled", "media_occlusion_removal_enabled", "occlusion_detection_enabled", "capture_auto_review",
@@ -101,8 +101,11 @@ fun TopicScreen(name: String, open: (NavKey) -> Unit, model: SettingsViewModel =
             Topic.NOTIFICATIONS -> item(key = "visor") {
                 val on by model.notifyChoice.enabled.collectAsStateWithLifecycle()
                 val muted by model.apps.muted.collectAsStateWithLifecycle()
+                val glasses by model.connection.state.collectAsStateWithLifecycle()
+                // Glasses without a display read out chat messages only.
+                val sub = if (hasDisplay(glasses.info?.build)) R.string.settings_notifications_sub else R.string.settings_notifications_sub_chat
                 Rows(
-                    { VisorToggleRow(model.toggles.byId("notifications")!!, sub = stringResource(R.string.settings_notifications_sub)) },
+                    { VisorToggleRow(model.toggles.byId("notifications")!!, sub = stringResource(sub)) },
                     if (on) row {
                         ValueRow(
                             stringResource(R.string.notify_apps_title),

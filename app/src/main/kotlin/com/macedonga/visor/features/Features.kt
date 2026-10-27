@@ -63,6 +63,8 @@ data class FeaturesState(
     /** Turned on with switches the glasses read when they start: waiting for a restart. */
     val restart: Set<Feature> = emptySet(),
     val problem: String? = null,
+    /** The Meta product id of the pair, as [Feature.on] reads it. */
+    val product: Int? = null,
 )
 
 /**
@@ -118,6 +120,7 @@ class Features @Inject constructor(
                     readAt = c.reportedAt ?: c.readAt,
                     restart = m.restart,
                     problem = m.problem,
+                    product = s.product,
                 )
             }.collect { _state.value = it }
         }

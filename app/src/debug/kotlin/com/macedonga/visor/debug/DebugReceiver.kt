@@ -98,6 +98,13 @@ class DebugReceiver : BroadcastReceiver() {
             }
             "LIVE_REPLAY" -> answerLater { "replay ${live.outputs.replay.heldUs / 1000} ms: ${live.outputs.saveReplay()}" }
             "LIVE_FRAME" -> answerLater { "frame: ${live.outputs.saveFrame()}" }
+            // --es file <pushed mp4> --es handle <capture> [--ez landscape] [--ei strength]: the phone's stabilization run again,
+            // into steady_out.mp4 beside the pushed file.
+            "STEADY" -> answerLater {
+                val input = pushed(context, intent.getStringExtra("file")) ?: return@answerLater "no such pushed file"
+                val out = java.io.File(input.parentFile, "steady_out.mp4")
+                media.finishAgain(input, intent.getStringExtra("handle").orEmpty(), out, intent.getBooleanExtra("landscape", false), intent.getIntExtra("strength", 0))
+            }
             "BUGREPORT" -> {
                 media.requestBugReport(if (intent.hasExtra("mode")) intent.getIntExtra("mode", 0) else null)
                 resultData = "asked; the zip goes to Download/Visor"
@@ -282,7 +289,7 @@ class DebugReceiver : BroadcastReceiver() {
                 }
             }
             "MEDIA" -> resultData = media.captures.value.joinToString("\n") { c ->
-                "${c.handle} kind=${c.kindCode} ${c.takenAtMillis} " + c.assets.joinToString(" ") { "${it.id}:0x${it.typeCode.toString(16)}:${it.size}" }
+                "${c.handle} kind=${c.kindCode} ${c.takenAtMillis}${if (c.landscape) " landscape" else ""} " + c.assets.joinToString(" ") { "${it.id}:0x${it.typeCode.toString(16)}:${it.size}" }
             }.ifEmpty { "no captures listed; open Media once or wait for the list" }
             "IMPORT" -> {
                 val handles = intent.getStringExtra("handle")?.split(",").orEmpty()

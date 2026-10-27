@@ -570,7 +570,7 @@ private fun summary(topic: Topic, model: SettingsViewModel, state: SettingsState
         ).joinToString(" · ")
         Topic.HEARING -> {
             val features by model.features.state.collectAsStateWithLifecycle()
-            Feature.entries.filter { it.topic == Topic.HEARING && features.standings[it] == Standing.ON }
+            Feature.entries.filter { it.topic == Topic.HEARING && it.on(features.product) && features.standings[it] == Standing.ON }
                 .map { stringResource(it.title) }.joinToString(" · ").ifEmpty { stringResource(R.string.sum_all_off) }
         }
         Topic.WEAR -> listOfNotNull(

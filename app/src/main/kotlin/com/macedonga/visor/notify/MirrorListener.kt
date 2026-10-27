@@ -2,6 +2,7 @@ package com.macedonga.visor.notify
 
 import android.app.Notification
 import android.app.NotificationManager
+import android.app.Person
 import android.content.ComponentName
 import android.graphics.Bitmap
 import android.graphics.Canvas
@@ -24,6 +25,7 @@ import com.macedonga.visor.core.assistant.Messaging
 import com.macedonga.visor.core.connection.GlassesConnection
 import com.macedonga.visor.core.session.LinkState
 import com.macedonga.visor.core.settings.GlassesSettings
+import com.macedonga.visor.settings.hasDisplay
 import dagger.hilt.android.AndroidEntryPoint
 import java.io.ByteArrayOutputStream
 import javax.inject.Inject
@@ -98,6 +100,11 @@ class MirrorListener : NotificationListenerService(), Messaging {
 
     override fun onNotificationPosted(sbn: StatusBarNotification, rankingMap: RankingMap) {
         if (!wanted(sbn, rankingMap)) return
+        // Glasses without a display read out chat messages only and drop the rest unpresented: another app's
+        // chat goes to them as a WhatsApp message, anything else not at all.
+        val display = display()
+        val chatProvider = PROVIDERS[sbn.packageName] ?: PROVIDER_WHATSAPP.takeIf { !display && chat(sbn.notification) }
+        if (chatProvider == null && !display) return
         apps.saw(sbn.packageName)
         if (!choice.enabled.value || !ready() || sbn.packageName in apps.muted.value) return
         val n = sbn.notification
@@ -106,7 +113,7 @@ class MirrorListener : NotificationListenerService(), Messaging {
         val text = (extras.getCharSequence(Notification.EXTRA_BIG_TEXT) ?: extras.getCharSequence(Notification.EXTRA_TEXT))?.toString().orEmpty()
         val appName = runCatching { packageManager.getApplicationLabel(packageManager.getApplicationInfo(sbn.packageName, 0)).toString() }.getOrDefault(sbn.packageName)
         val r = Ranking()
-        PROVIDERS[sbn.packageName]?.let { provider ->
+        chatProvider?.let { provider ->
             message(sbn, provider, appName)?.let { m ->
                 deliver(sbn.key, m.envelope())
                 replyAction(n)?.let { action ->
@@ -195,13 +202,17 @@ class MirrorListener : NotificationListenerService(), Messaging {
             ?: (extras.getCharSequence(Notification.EXTRA_BIG_TEXT) ?: extras.getCharSequence(Notification.EXTRA_TEXT))?.toString().orEmpty()
         val time = last?.getLong("time")?.takeIf { it > 0 } ?: sbn.postTime
         if (text.isBlank()) return null
+        // A reply sent from the notification is added to it as the user's own message: not news for the glasses.
+        @Suppress("DEPRECATION")
+        val user = extras.getParcelable(Notification.EXTRA_MESSAGING_PERSON) as? Person
+        if (last != null && fromUser(last, user)) return null
         if (sentAt[sbn.key] == time) return null
         sentAt[sbn.key] = time
         while (sentAt.size > 300) sentAt.remove(sentAt.keys.first())
         val group = extras.getBoolean(Notification.EXTRA_IS_GROUP_CONVERSATION)
         return GlassesNotification(
             key = sbn.key,
-            pkg = sbn.packageName,
+            pkg = if (sbn.packageName in PROVIDERS) sbn.packageName else WHATSAPP,
             appName = appName,
             title = sender,
             text = text,
@@ -215,6 +226,17 @@ class MirrorListener : NotificationListenerService(), Messaging {
             groupName = extras.getCharSequence(Notification.EXTRA_CONVERSATION_TITLE)?.toString().orEmpty(),
         )
     }
+
+    /** A message the user sent: no sender, and the user's own person when one is given. */
+    private fun fromUser(m: Bundle, user: Person?): Boolean {
+        @Suppress("DEPRECATION")
+        val person = m.getParcelable("sender_person") as? Person
+        return m.getCharSequence("sender") == null && (person == null || user != null && person.key == user.key && person.name == user.name)
+    }
+
+    /** A conversation in the chat layout (MessagingStyle), which the glasses' announcer reads as a message. */
+    @Suppress("DEPRECATION")
+    private fun chat(n: Notification): Boolean = n.extras.getParcelableArray(Notification.EXTRA_MESSAGES)?.isNotEmpty() == true
 
     // The action that takes typed text: the app's own "Reply".
     private fun replyAction(n: Notification): Notification.Action? =
@@ -233,6 +255,8 @@ class MirrorListener : NotificationListenerService(), Messaging {
     }
 
     private fun ready() = connection.state.value.link == LinkState.READY
+
+    private fun display() = hasDisplay(connection.state.value.info?.build)
 
     // The Meta app's filters: nothing ongoing, no group summaries, nothing empty or below default
     // importance, and not the SMS app or the dialer, whose messages and calls reach the glasses by
@@ -273,6 +297,8 @@ class MirrorListener : NotificationListenerService(), Messaging {
 
     companion object {
         private const val PROVIDER_MIRRORED = 8
+        private const val PROVIDER_WHATSAPP = 2
+        private const val WHATSAPP = "com.whatsapp"
         private const val TYPE_INCOMING_MESSAGE = 1
 
         // The chat apps the glasses announce themselves, by their NotificationProvider.

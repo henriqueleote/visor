@@ -133,6 +133,8 @@ class GlassesService : Service() {
             com.macedonga.visor.language.keepAssistantConfig(scope, connection, glassesConfig, media, glassesSettings, assistantConfig, log)
             developer.keep(scope)
             com.macedonga.visor.settings.keepCameraInLine(scope, glassesSettings, assistantConfig, log)
+            com.macedonga.visor.settings.keepLandscape(scope, connection, glassesSettings, glassesConfig, media, log)
+            media.steadiedOnGlasses = com.macedonga.visor.settings.steadiedOnGlasses(glassesSettings)
             notifications = scope.launch {
                 var shown: Any? = null
                 combine(connection.state, liveNow(), outside.glimpse, ::Triple).collect { (state, now, glimpse) ->
@@ -247,7 +249,11 @@ class GlassesService : Service() {
             .setContentIntent(PendingIntent.getActivity(this, 2, open, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT))
             .addAction(Notification.Action.Builder(null, getString(R.string.live_stop), stop).build())
         if (now.since > 0) builder.setWhen(now.since).setShowWhen(true).setUsesChronometer(true)
-        if (android.os.Build.VERSION.SDK_INT >= 36) builder.setRequestPromotedOngoing(true).setShortCriticalText(now.short)
+        if (Build.VERSION.SDK_INT >= 36) {
+            builder.setShortCriticalText(now.short)
+            // Asking to be promoted came with Android 16.1; on 16.0 the call is missing and Live crashed.
+            if (Build.VERSION.SDK_INT_FULL >= Build.VERSION_CODES_FULL.BAKLAVA_1) builder.setRequestPromotedOngoing(true)
+        }
         return builder.build()
     }
 
