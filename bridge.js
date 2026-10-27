@@ -1,100 +1,183 @@
 const http = require('http');
-const { exec } = require('child_process');
+const { spawn } = require('child_process');
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
 
-const PORT = 8080;
-let useContinueFlag = true;
+const PORT = Number(process.env.BRIDGE_PORT) || 8080;
+const MODEL = process.env.CLAUDE_MODEL || 'haiku';
+// Optional: other apps on the phone can reach a loopback port, so set this and Visor's API key to the same secret.
+const TOKEN = process.env.BRIDGE_TOKEN || '';
+const TIMEOUT_MS = 40000;
+const IDLE_MS = (Number(process.env.BRIDGE_IDLE_MIN) || 10) * 60000;
+const MAX_TURNS = 40;
+const MAX_BODY = 20e6;
+const WORKDIR = path.join(os.homedir(), '.visor-bridge');
+const SYSTEM = 'You are a voice assistant on smart glasses. Your answer is spoken aloud: reply in one or two short ' +
+  'sentences, plain words, no markdown, lists or emoji. If an image comes with the question, it is what the wearer sees.';
+const FALLBACK = "Sorry, I couldn't process that request.";
+
+// One long-lived Claude Code process answers every question: starting `claude -p` per request is most of the wait.
+let worker = null;
+
+function start() {
+  fs.mkdirSync(WORKDIR, { recursive: true });
+  const child = spawn('claude', [
+    '-p', '--input-format', 'stream-json', '--output-format', 'stream-json', '--verbose',
+    '--model', MODEL, '--system-prompt', SYSTEM,
+    '--tools', '', '--strict-mcp-config', '--disable-slash-commands', '--setting-sources', '', '--no-session-persistence',
+  ], { cwd: WORKDIR, stdio: ['pipe', 'pipe', 'pipe'] });
+  const w = { child, buf: '', err: '', pending: null, turns: 0, last: Date.now() };
+  const lost = error => {
+    if (worker === w) worker = null;
+    if (w.pending) w.pending.reject(error);
+  };
+  child.stdout.on('data', chunk => {
+    w.buf += chunk;
+    let i;
+    while ((i = w.buf.indexOf('\n')) >= 0) {
+      const line = w.buf.slice(0, i);
+      w.buf = w.buf.slice(i + 1);
+      let event;
+      try { event = JSON.parse(line); } catch (e) { continue; }
+      if (event.type === 'result' && w.pending) w.pending.resolve(event);
+    }
+  });
+  child.stderr.on('data', chunk => { w.err = (w.err + chunk).slice(-500); });
+  child.on('error', lost);
+  child.on('close', () => lost(new Error(w.err || 'claude exited')));
+  child.stdin.on('error', () => {});
+  return w;
+}
+
+// Drops the conversation; the next one starts on a process that is already up.
+function reset() {
+  const old = worker;
+  worker = start();
+  if (old) {
+    old.pending = null;
+    old.child.kill('SIGTERM');
+  }
+}
+
+let queue = Promise.resolve();
+function ask(content) {
+  const run = queue.then(() => send(content));
+  queue = run.catch(() => {});
+  return run;
+}
+
+function send(content) {
+  return new Promise((resolve, reject) => {
+    if (worker && worker.turns >= MAX_TURNS) reset();
+    const w = worker || (worker = start());
+    const settle = (fn, value) => () => { clearTimeout(timer); w.pending = null; fn(value); };
+    const timer = setTimeout(() => { reset(); reject(new Error('timeout')); }, TIMEOUT_MS);
+    w.pending = {
+      resolve: event => {
+        w.last = Date.now();
+        if (event.is_error || typeof event.result !== 'string' || !event.result.trim()) {
+          reset();
+          settle(reject, new Error(event.result || 'Claude Code returned no text'))();
+        } else {
+          settle(resolve, event.result.trim())();
+        }
+      },
+      reject: error => settle(reject, error)(),
+    };
+    w.turns++;
+    w.child.stdin.write(JSON.stringify({ type: 'user', message: { role: 'user', content } }) + '\n');
+  });
+}
+
+// OpenAI message content to Claude's blocks; images arrive as data URLs.
+function blocks(content) {
+  if (typeof content === 'string') return [{ type: 'text', text: content }];
+  const out = [];
+  for (const part of content || []) {
+    if (part.type === 'text' && part.text) {
+      out.push({ type: 'text', text: part.text });
+    } else if (part.type === 'image_url') {
+      const url = (part.image_url && part.image_url.url) || '';
+      const cut = url.indexOf(';base64,');
+      if (url.startsWith('data:image/') && cut > 0) {
+        out.push({ type: 'image', source: { type: 'base64', media_type: url.slice(5, cut), data: url.slice(cut + 8) } });
+      }
+    }
+  }
+  return out;
+}
+
+function say(res, text, model) {
+  res.writeHead(200, { 'Content-Type': 'application/json' });
+  res.end(JSON.stringify({
+    id: 'chatcmpl-termux-bridge',
+    object: 'chat.completion',
+    created: Math.floor(Date.now() / 1000),
+    model: model || 'claude-code',
+    choices: [{ index: 0, message: { role: 'assistant', content: text }, finish_reason: 'stop' }],
+  }));
+}
+
+function fail(res, status, message) {
+  res.writeHead(status, { 'Content-Type': 'application/json' });
+  res.end(JSON.stringify({ error: message }));
+}
 
 const server = http.createServer((req, res) => {
-  console.log(`[INCOMING] ${req.method} ${req.url}`);
+  if (TOKEN && req.headers.authorization !== `Bearer ${TOKEN}`) return fail(res, 401, 'missing or invalid bearer token');
 
   if (req.method === 'GET') {
     res.writeHead(200, { 'Content-Type': 'application/json' });
     return res.end(JSON.stringify({
       object: 'list',
-      data: [{ id: 'claude-code', object: 'model', created: 1700000000, owned_by: 'local' }]
+      data: [{ id: 'claude-code', object: 'model', created: 1700000000, owned_by: 'local' }],
     }));
   }
 
-  if (req.method === 'POST' && req.url.includes('chat/completions')) {
-    let body = '';
-    req.on('data', chunk => { body += chunk.toString(); });
-    req.on('end', () => {
-      try {
-        const parsed = JSON.parse(body);
-        const userMessages = parsed.messages ? parsed.messages.filter(m => m.role === 'user') : [];
-        const lastMessage = userMessages.length > 0 ? userMessages[userMessages.length - 1].content : '';
+  if (req.method !== 'POST' || !req.url.includes('chat/completions')) return fail(res, 404, `Route not found: ${req.url}`);
 
-        if (!lastMessage) {
-          throw new Error("No user message found.");
-        }
+  let body = '';
+  req.on('data', chunk => {
+    body += chunk;
+    if (body.length > MAX_BODY) req.destroy();
+  });
+  req.on('end', async () => {
+    let request;
+    let content;
+    try {
+      request = JSON.parse(body);
+      const users = (request.messages || []).filter(m => m.role === 'user');
+      content = blocks(users.length ? users[users.length - 1].content : '');
+      if (!content.length) throw new Error('No user message found.');
+    } catch (error) {
+      return fail(res, 400, 'Invalid payload');
+    }
 
-        let responseText = "";
-        const lowerMsg = lastMessage.trim().toLowerCase();
+    const spoken = content.filter(b => b.type === 'text').map(b => b.text).join(' ').trim().toLowerCase();
+    if (spoken === '/clear' || spoken === 'clear session') {
+      reset();
+      return say(res, 'Session cleared. Starting a fresh conversation.', request.model);
+    }
 
-        if (lowerMsg === '/remote session' || lowerMsg === 'remote session') {
-          responseText = `Persistent session mode is active (${useContinueFlag ? 'Continuing latest thread' : 'Fresh sessions'}). Say "clear session" to reset.`;
-          return sendResponse(res, responseText);
-        }
-
-        if (lowerMsg === '/clear' || lowerMsg === 'clear session') {
-          useContinueFlag = false;
-          setTimeout(() => { useContinueFlag = true; }, 2000);
-          responseText = "Session context cleared. Starting a fresh conversation.";
-          return sendResponse(res, responseText);
-        }
-
-        // Voice optimization instruction injected before every user prompt
-        const voiceDirective = "[System: Keep your response extremely short, concise, and direct, as it will be spoken aloud via a voice assistant.] ";
-        const combinedPrompt = voiceDirective + lastMessage;
-        
-        const safePrompt = combinedPrompt.replace(/"/g, '\\"').replace(/\n/g, ' ');
-        const flag = useContinueFlag ? '-c -p' : '-p';
-        const cmd = `claude ${flag} "${safePrompt}" --output-format json --max-turns 1`;
-
-        exec(cmd, { timeout: 40000 }, (error, stdout, stderr) => {
-          responseText = "Sorry, I couldn't process that request.";
-
-          if (!error && stdout) {
-            try {
-              const jsonRes = JSON.parse(stdout);
-              responseText = jsonRes.result || jsonRes.text || stdout;
-            } catch (e) {
-              responseText = stdout.trim();
-            }
-          } else {
-            console.error("Claude Error:", stderr || error);
-          }
-
-          sendResponse(res, responseText);
-        });
-      } catch (err) {
-        console.error("Payload error:", err);
-        res.writeHead(400, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: "Invalid payload" }));
-      }
-    });
-    return;
-  }
-
-  res.writeHead(404, { 'Content-Type': 'application/json' });
-  res.end(JSON.stringify({ error: `Route not found: ${req.url}` }));
+    const started = Date.now();
+    try {
+      const answer = await ask(content);
+      console.log(`[${new Date().toISOString()}] answered in ${Date.now() - started} ms`);
+      say(res, answer, request.model);
+    } catch (error) {
+      console.error('Claude error:', error.message);
+      say(res, FALLBACK, request.model);
+    }
+  });
 });
-
-function sendResponse(res, text) {
-  const responsePayload = {
-    id: 'chatcmpl-termux-bridge',
-    object: 'chat.completion',
-    created: Math.floor(Date.now() / 1000),
-    choices: [{
-      index: 0,
-      message: { role: 'assistant', content: text },
-      finish_reason: 'stop'
-    }]
-  };
-  res.writeHead(200, { 'Content-Type': 'application/json' });
-  res.end(JSON.stringify(responsePayload));
-}
 
 server.listen(PORT, '127.0.0.1', () => {
-  console.log(`Persistent voice-optimized bridge server running at http://127.0.0.1:${PORT}`);
+  worker = start();
+  setInterval(() => { if (worker && worker.turns && Date.now() - worker.last > IDLE_MS) reset(); }, 60000).unref();
+  console.log(`Claude voice bridge on http://127.0.0.1:${PORT} (model ${MODEL})`);
 });
+
+process.on('exit', () => { if (worker) worker.child.kill('SIGTERM'); });
+process.on('SIGINT', () => process.exit(0));
+process.on('SIGTERM', () => process.exit(0));

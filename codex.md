@@ -83,14 +83,15 @@ Inside your Ubuntu proot container:
 
 The bridge script runs on `127.0.0.1:8080`, exposing an OpenAI-compatible endpoint (`/v1/chat/completions`) that translates incoming Visor voice and image payloads into execution flags for Claude Code.
 
-### Learned Technical Solutions & Capabilities:
+### How it works now
 
-- **Persistent Sessions**: Employs Claude Code's continuation flag (`-c -p`) to keep multi-turn context across voice queries.
-- **Vision Processing**: Intercepts `image_url` base64 data from Visor, writes it to a temporary file (`/tmp/visor_input.jpg`), and passes the image argument directly to the `claude` CLI command.
-- **Stdin Stream Fix**: Appends `< /dev/null` to prevent execution hangs caused by non-interactive stdin waiting in background process spawns.
-- **Root / Permission Compatibility**: Avoids `--dangerously-skip-permissions` (which fails under root/proot environments) and passes explicit file arguments so Claude processes vision without interactive prompts.
-- **System Directives**: Injects voice optimization instructions (`[System: Keep your response extremely short, concise, and direct...]`) for fast text-to-speech rendering on the glasses.
-- **Command Interception**: Intercepts commands starting with `/remote` or `/clear` directly at the bridge level without querying the underlying LLM.
+- **One warm process**: a single long-lived `claude -p --input-format stream-json` answers every question, so there is no Claude Code start-up per request (about 0.7-2 s per answer, down from 5-12 s). It is started with the bridge and restarted after 10 idle minutes (`BRIDGE_IDLE_MIN`), 40 turns, an error, or a timeout.
+- **Fast flags**: model `haiku` (`CLAUDE_MODEL` to change it), a short voice system prompt, no tools, no MCP, no skills, no settings, no session files.
+- **Context**: the process remembers the conversation until it restarts. "clear session" (or `/clear`) restarts it by hand.
+- **Vision**: `image_url` data URLs from Visor go to Claude as image blocks. No temporary files and no Read tool.
+- **No shell**: the question never touches a shell command line, so spoken text like `$(...)` cannot run anything.
+- **Optional token**: set `BRIDGE_TOKEN` and use the same value as Visor's API key; any other app on the phone can reach a loopback port.
+- Visor's system prompt and tool declarations are ignored: only the last user message is used.
 
 ---
 
