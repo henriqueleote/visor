@@ -14,7 +14,12 @@ const MAX_TURNS = 40;
 const MAX_BODY = 20e6;
 const WORKDIR = path.join(os.homedir(), '.visor-bridge');
 const SYSTEM = 'You are a voice assistant on smart glasses. Your answer is spoken aloud: reply in one or two short ' +
-  'sentences, plain words, no markdown, lists or emoji. If an image comes with the question, it is what the wearer sees.';
+  'sentences, plain words, no markdown, lists or emoji. If an image comes with the question, it is what the wearer sees. ' +
+  'The question comes from speech recognition, which can clip or mishear the first word (for example "and times two" ' +
+  'arrives as "n times two"): when it only makes sense as a follow-up to your last answer, read it that way. ' +
+  'The glasses keep listening after every answer. When the wearer is done (thanks, that is all, no thanks, goodbye, ' +
+  'stop) and you are not asking them anything, answer in a few words and end with the word END_CONVERSATION.';
+const END = /\s*END_CONVERSATION\W*/gi;
 const FALLBACK = "Sorry, I couldn't process that request.";
 
 // One long-lived Claude Code process answers every question: starting `claude -p` per request is most of the wait.
@@ -108,14 +113,17 @@ function blocks(content) {
   return out;
 }
 
-function say(res, text, model) {
+// ends: Visor offered end_conversation and the wearer is done, so answer with that call; Visor then asks once more for the words.
+function say(res, text, model, ends) {
+  const message = { role: 'assistant', content: text };
+  if (ends) message.tool_calls = [{ id: 'call_end', type: 'function', function: { name: 'end_conversation', arguments: '{}' } }];
   res.writeHead(200, { 'Content-Type': 'application/json' });
   res.end(JSON.stringify({
     id: 'chatcmpl-termux-bridge',
     object: 'chat.completion',
     created: Math.floor(Date.now() / 1000),
     model: model || 'claude-code',
-    choices: [{ index: 0, message: { role: 'assistant', content: text }, finish_reason: 'stop' }],
+    choices: [{ index: 0, message, finish_reason: ends ? 'tool_calls' : 'stop' }],
   }));
 }
 
@@ -147,6 +155,12 @@ const server = http.createServer((req, res) => {
     let content;
     try {
       request = JSON.parse(body);
+      const messages = request.messages || [];
+      // The round after end_conversation: nothing to ask Claude, the words already went out with the call.
+      if (messages.length && messages[messages.length - 1].role === 'tool') {
+        const before = messages.slice().reverse().find(m => m.role === 'assistant');
+        return say(res, (before && typeof before.content === 'string' && before.content) || 'Okay.', request.model);
+      }
       const users = (request.messages || []).filter(m => m.role === 'user');
       content = blocks(users.length ? users[users.length - 1].content : '');
       if (!content.length) throw new Error('No user message found.');
@@ -163,8 +177,10 @@ const server = http.createServer((req, res) => {
     const started = Date.now();
     try {
       const answer = await ask(content);
-      console.log(`[${new Date().toISOString()}] answered in ${Date.now() - started} ms`);
-      say(res, answer, request.model);
+      const done = new RegExp(END.source, 'i').test(answer);
+      const offered = (request.tools || []).some(t => t.function && t.function.name === 'end_conversation');
+      console.log(`[${new Date().toISOString()}] answered in ${Date.now() - started} ms${done ? ' (conversation ends)' : ''}`);
+      say(res, answer.replace(END, ' ').trim() || 'Okay.', request.model, done && offered);
     } catch (error) {
       console.error('Claude error:', error.message);
       say(res, FALLBACK, request.model);
