@@ -473,6 +473,13 @@
     <string name="ai_answer_sub">Off, the glasses\' own assistant has no phone behind it.</string>
     <string name="ai_section_model">Model</string>
     <string name="ai_provider">Provider</string>
+    <string name="ai_claude_subscription">Claude subscription</string>
+    <string name="ai_bridge">Bridge</string>
+    <string name="ai_bridge_start">Start</string>
+    <string name="ai_bridge_stop">Stop</string>
+    <string name="ai_bridge_up">Running in Termux.</string>
+    <string name="ai_bridge_down">Not running.</string>
+    <string name="ai_bridge_note">The Claude subscription only works while the bridge is running. Starting it from here needs Termux with allow-external-apps on.</string>
     <string name="ai_openai_compatible">OpenAI-compatible</string>
     <string name="ai_base_url">Server</string>
     <string name="ai_key">API key</string>
