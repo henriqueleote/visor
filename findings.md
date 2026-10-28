@@ -35,6 +35,7 @@ Earlier bridges on the phone sit next to it as `bridge.js.bak` (the original) an
 - `AssistantSettings.kt`: three provider pills; picking the subscription sets the model to `claude-code` and the server to `http://127.0.0.1:8080/v1` unless the address already points at this phone. A **Bridge** row on that tab shows the status ("Running in Termux." when `/v1/models` answers), a note that the subscription only works while the bridge runs, and one button: Allow, then Start or Stop.
 - `TermuxBridge.kt`: the button's work. Termux's `RUN_COMMAND` service runs `proot-distro login ubuntu -- bash -c "cd /root && exec node bridge.js >> bridge.log 2>&1"` to start, and `pkill -f "node bridge.js"` to stop. The manifest adds the `com.termux.permission.RUN_COMMAND` permission and a `<queries>` entry for `com.termux`.
 - `Vision.kt`: a question whose glasses intent names an image (`IMPLICIT_DESCRIBE_IMAGE`, "what can I cook with this") now asks for the photo. It set none of the glasses' image flags and none of the word list, so before this no photo was requested and the model said it saw no image.
+- `open_app` in `Phone.kt` and `PhoneActions.kt`: a tool that opens an installed app by its name ("open Spotify"). It looks among the apps with a launcher; the same name wins, else the closest one whose name contains what was said, and what was said may contain an app's name only from four letters up (an app called X once opened for "Zorbax"). Opened through the same path as directions, so while Visor is not in front, or the phone is locked, the app waits in a notification.
 - Strings in English, Italian and Russian.
 
 Keep fork changes in these few places (and new files) so `git merge upstream/main` stays quiet.
@@ -70,13 +71,17 @@ Keep fork changes in these few places (and new files) so `git merge upstream/mai
 
 **Tools work through the bridge.** "Play some jazz" ran Visor's music tool and Spotify resumed once it had a media session. Before that Visor answered that the phone needed an app to play from, which was a Visor setting and the missing session, not the bridge. A Home Assistant tool is not set up in Visor, so "turn off the light" has nothing to call.
 
+**Open apps by voice.** "Open Spotify" and "open WhatsApp" opened the apps in about 1.2 s from hearing the question; "open Zorbax" said there is no such app and opened nothing. The first version opened X for "Zorbax" because the word contains the letter x; the four-letter rule above fixed it. Visor's own `play_media` matching for music apps still uses the looser rule. Not tried: a locked phone (the app should wait in a notification).
+
+**Quiet after actions.** The Visor switch Settings > Meta AI > **Quiet after actions** (`quiet_after_actions`, off by default) makes the glasses say nothing when every tool did what was asked. With it on, "open Spotify" and "open WhatsApp" ended with "Ended the turn without a word: every tool did what was asked" in the log, a plain question was still answered aloud, and a failed action still speaks. A reply that ends in a question is also spoken. It is all or nothing; a per-request "tell me when it's done" would need a Visor change.
+
 **Remote Control.** Claude Code's Remote Control is Anthropic's relay between a session on your machine and claude.ai or the Claude mobile app. No supported API lets another program join a session by ID, so the glasses cannot attach to the Home Jarvis session on the Pi. `claude --resume <id>` works only on the machine that holds the conversation file, and Home Jarvis runs inside the Claude Terminal Pro add-on, which publishes no port. House control would have to come from Home Assistant's own MCP server added in Visor, not from that session.
 
 **Meta's own AI is out of reach.** With Visor as the assistant, nothing hands "Hey Meta" to Meta's real assistant. Doing it would mean Visor calling Meta's private backend with the Meta login: unsupported, fragile, and a terms risk. Using Meta's AI means the Meta app owns the glasses again, which stops Visor.
 
 **The proot kills what it started.** A bridge started inside a proot session dies when that session or command ends. That is why the app's Start runs Node as the command itself, and why `control.sh start` only works while the Ubuntu shell stays open.
 
-**Tried on the phone and glasses.** Text answers, follow-ups, "thanks" and other closings, music, photo descriptions, the three provider tabs and Try it, the Bridge row status, Start keeping the bridge up for minutes. Not tried: the Home Assistant route, the 10-minute idle restart, Start from the background.
+**Tried on the phone and glasses.** Text answers, follow-ups, "thanks" and other closings, music, photo descriptions, opening apps by name, quiet after actions, the three provider tabs and Try it, the Bridge row status, Start keeping the bridge up for minutes. Not tried: the Home Assistant route, the 10-minute idle restart, Start from the background, opening an app with the phone locked.
 
 ## Troubleshooting
 
@@ -90,6 +95,8 @@ Keep fork changes in these few places (and new files) so `git merge upstream/mai
 | Follow-up not understood ("n times two") | First word clipped by the glasses' recogniser. Pause half a second after the answer; the prompt already reads such fragments as follow-ups. |
 | No follow-up listening at all | Turn on Respond without "Hey Meta" under Settings > Meta AI. |
 | Music does not start | Start something in Spotify first so it has a media session, and choose it in Visor's media settings. |
+| "Open <app>" says there is no such app | The name did not match an app with a launcher; say it as the app is labelled on the phone. |
+| "Open <app>" only shows a notification | Android lets Visor open another app only while Visor is in front (or as a companion app); tap the notification. |
 | Start does nothing | Termux needs `allow-external-apps = true` and Visor needs the Allow grant. |
 
 ## Working on the fork
@@ -106,5 +113,5 @@ Keep fork changes in these few places (and new files) so `git merge upstream/mai
 - Starting the bridge on demand when a question arrives and it is down (Android limits starting other apps' services from the background).
 - Home Assistant as a tool: add its MCP server in Visor's integrations (expose only safe entities; locks and alarms stay out).
 - Interrupt and listen with one press; a shorter follow-up listening window (the two flags above).
-- A voice picker for the phone's text-to-speech, an "open app" tool, a chess helper (Stockfish plus a board-reading step).
+- A voice picker for the phone's text-to-speech, a chess helper (Stockfish plus a board-reading step).
 - A relay to Meta's real assistant.
