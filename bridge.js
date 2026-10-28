@@ -19,8 +19,10 @@ const SYSTEM = 'You are a voice assistant on smart glasses. Your answer is spoke
   'sentences, plain words, no markdown, lists or emoji. If an image comes with the question, it is what the wearer sees. ' +
   'The question comes from speech recognition, which can clip or mishear the first word (for example "and times two" ' +
   'arrives as "n times two"): when it only makes sense as a follow-up to your last answer, read it that way. ' +
-  'The glasses keep listening after every answer. When the wearer is done (thanks, that is all, no thanks, goodbye, ' +
-  'stop) and you are not asking them anything, answer in a few words and end with the word END_CONVERSATION.';
+  'The glasses keep listening after every answer. Judge by meaning, not by exact words: when the wearer is closing the ' +
+  'conversation (thanks, thx, aight, cool that is it, nah I am good, nvm, bye, or anything else that dismisses you) and ' +
+  'is not asking anything new, answer in a few words and end with the word END_CONVERSATION. Do not end it when they ' +
+  'are still asking or when your answer asked them something.';
 const END_TOOL = 'end_conversation';
 const END = /\s*END_CONVERSATION\W*/gi;
 const TOOL_CALL = /TOOL_CALL\s*(\{[\s\S]*\})/;
