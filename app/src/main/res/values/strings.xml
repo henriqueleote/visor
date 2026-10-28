@@ -937,6 +937,7 @@
     <string name="hct_retry">Try again</string>
     <string name="phone_directions">Directions to %1$s</string>
     <string name="phone_play">Play %1$s</string>
+    <string name="phone_open">Open %1$s</string>
     <string name="live_settings_glasses_host">Glasses host the Wi-Fi</string>
     <string name="live_problem_vpn">A VPN keeps Visor off the glasses\' network. Exclude Visor from it.</string>
     <string name="live_drops">The stream keeps dropping</string>

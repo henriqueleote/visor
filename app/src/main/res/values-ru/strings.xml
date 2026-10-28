@@ -936,6 +936,7 @@
     <string name="hct_retry">Повторить</string>
     <string name="phone_directions">Маршрут до %1$s</string>
     <string name="phone_play">Воспроизвести %1$s</string>
+    <string name="phone_open">Открыть %1$s</string>
     <string name="live_settings_glasses_host">Wi-Fi создают очки</string>
     <string name="live_problem_vpn">VPN не пускает Visor в сеть очков. Исключите Visor из VPN.</string>
     <string name="live_drops">Трансляция часто обрывается</string>

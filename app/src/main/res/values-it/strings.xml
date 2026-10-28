@@ -935,6 +935,7 @@
     <string name="hct_retry">Riprova</string>
     <string name="phone_directions">Indicazioni per %1$s</string>
     <string name="phone_play">Riproduci %1$s</string>
+    <string name="phone_open">Apri %1$s</string>
     <string name="live_settings_glasses_host">Wi-Fi creato dagli occhiali</string>
     <string name="live_problem_vpn">Una VPN tiene Visor fuori dalla rete degli occhiali. Escludi Visor dalla VPN.</string>
     <string name="live_drops">Lo streaming si interrompe spesso</string>
