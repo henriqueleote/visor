@@ -71,7 +71,7 @@ Keep fork changes in these few places (and new files) so `git merge upstream/mai
 
 **Tools work through the bridge.** "Play some jazz" ran Visor's music tool and Spotify resumed once it had a media session. Before that Visor answered that the phone needed an app to play from, which was a Visor setting and the missing session, not the bridge. A Home Assistant tool is not set up in Visor, so "turn off the light" has nothing to call.
 
-**Open apps by voice.** "Open Spotify" and "open WhatsApp" opened the apps in about 1.2 s from hearing the question; "open Zorbax" said there is no such app and opened nothing. The first version opened X for "Zorbax" because the word contains the letter x; the four-letter rule above fixed it. Visor's own `play_media` matching for music apps still uses the looser rule. Not tried: a locked phone (the app should wait in a notification).
+**Open apps by voice.** "Open Spotify" and "open WhatsApp" opened the apps in about 1.2 s from hearing the question; "open Zorbax" said there is no such app and opened nothing. The first version opened X for "Zorbax" because the word contains the letter x; the four-letter rule above fixed it. Visor's own `play_media` matching for music apps still uses the looser rule. With the phone locked (or Visor not in front) it did not open the app but left a notification: the log shows "Phone: Waiting in a notification: Open Spotify" at 18:32:41, and tapping it opened Spotify.
 
 **Quiet after actions.** The Visor switch Settings > Meta AI > **Quiet after actions** (`quiet_after_actions`, off by default) makes the glasses say nothing when every tool did what was asked. With it on, "open Spotify" and "open WhatsApp" ended with "Ended the turn without a word: every tool did what was asked" in the log, a plain question was still answered aloud, and a failed action still speaks. A reply that ends in a question is also spoken. It is all or nothing; a per-request "tell me when it's done" would need a Visor change.
 
@@ -81,7 +81,7 @@ Keep fork changes in these few places (and new files) so `git merge upstream/mai
 
 **The proot kills what it started.** A bridge started inside a proot session dies when that session or command ends. That is why the app's Start runs Node as the command itself, and why `control.sh start` only works while the Ubuntu shell stays open.
 
-**Tried on the phone and glasses.** Text answers, follow-ups, "thanks" and other closings, music, photo descriptions, opening apps by name, quiet after actions, the three provider tabs and Try it, the Bridge row status, Start keeping the bridge up for minutes. Not tried: the Home Assistant route, the 10-minute idle restart, Start from the background, opening an app with the phone locked.
+**Tried on the phone and glasses.** Text answers, follow-ups, "thanks" and other closings, music, photo descriptions, opening apps by name, quiet after actions, the three provider tabs and Try it, the Bridge row status, Start keeping the bridge up for minutes. Not tried: the Home Assistant route, the 10-minute idle restart, Start from the background.
 
 ## Troubleshooting
 
