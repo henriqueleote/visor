@@ -5,7 +5,9 @@ const os = require('os');
 const path = require('path');
 const { randomUUID } = require('crypto');
 
-const PORT = Number(process.env.BRIDGE_PORT) || 8080;
+// Shown in Visor's Bridge row. Major.minor.patch: patch for fixes and prompt tweaks, minor for new abilities.
+const VERSION = '1.1.0';
+const PORT =Number(process.env.BRIDGE_PORT) || 8080;
 const MODEL = process.env.CLAUDE_MODEL || 'haiku';
 // Optional: other apps on the phone can reach a loopback port, so set this and Visor's API key to the same secret.
 const TOKEN = process.env.BRIDGE_TOKEN || '';
@@ -17,6 +19,8 @@ const MAX_TOOL_ROUNDS = 4;
 const WORKDIR = path.join(os.homedir(), '.visor-bridge');
 const SYSTEM = 'You are a voice assistant on smart glasses. Your answer is spoken aloud: reply in one or two short ' +
   'sentences, plain words, no markdown, lists or emoji. If an image comes with the question, it is what the wearer sees. ' +
+  'Search the web only when the answer depends on current or local facts (news, scores, prices, opening hours, ' +
+  'recent events) and no tool you were given covers it; for the weather use the weather tool. Otherwise answer from what you know, since a search makes the wearer wait. ' +
   'The question comes from speech recognition, which can clip or mishear the first word (for example "and times two" ' +
   'arrives as "n times two"): when it only makes sense as a follow-up to your last answer, read it that way. ' +
   'The glasses keep listening after every answer. Judge by meaning, not by exact words: when the wearer is closing the ' +
@@ -38,7 +42,8 @@ function start() {
   const child = spawn('claude', [
     '-p', '--input-format', 'stream-json', '--output-format', 'stream-json', '--verbose',
     '--model', MODEL, '--system-prompt', SYSTEM,
-    '--tools', '', '--strict-mcp-config', '--disable-slash-commands', '--setting-sources', '', '--no-session-persistence',
+    // Web search only: answers that need fresh facts. No shell, files or fetching pages.
+    '--tools', 'WebSearch', '--allowedTools', 'WebSearch', '--strict-mcp-config', '--disable-slash-commands', '--setting-sources', '', '--no-session-persistence',
   ], { cwd: WORKDIR, stdio: ['pipe', 'pipe', 'pipe'] });
   const w = { child, buf: '', err: '', pending: null, turns: 0, last: Date.now() };
   const lost = error => {
@@ -195,7 +200,7 @@ const server = http.createServer((req, res) => {
     res.writeHead(200, { 'Content-Type': 'application/json' });
     return res.end(JSON.stringify({
       object: 'list',
-      data: [{ id: 'claude-code', object: 'model', created: 1700000000, owned_by: 'local' }],
+      data: [{ id: 'claude-code', name: `Claude Code, bridge ${VERSION}`, object: 'model', created: 1700000000, owned_by: 'local' }],
     }));
   }
 
@@ -266,7 +271,7 @@ const server = http.createServer((req, res) => {
 server.listen(PORT, '127.0.0.1', () => {
   worker = start();
   setInterval(() => { if (worker && worker.turns && Date.now() - worker.last > IDLE_MS) reset(); }, 60000).unref();
-  console.log(`Claude voice bridge on http://127.0.0.1:${PORT} (model ${MODEL})`);
+  console.log(`Claude voice bridge ${VERSION} on http://127.0.0.1:${PORT} (model ${MODEL})`);
 });
 
 process.on('exit', () => { if (worker) worker.child.kill('SIGTERM'); });

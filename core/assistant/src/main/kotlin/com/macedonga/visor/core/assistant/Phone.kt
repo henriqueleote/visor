@@ -21,6 +21,9 @@ interface Phone {
     /** The installed app called [app], opened on the phone. */
     suspend fun openApp(app: String): PhoneDone
 
+    /** Where the phone is, named by its town, or null without the location permission or a fix. */
+    suspend fun whereAmI(): Spot?
+
     fun nowPlaying(): NowPlaying
 }
 
@@ -58,7 +61,8 @@ internal class PhoneTools(private val phone: Phone) {
 
     val prompt = " You can also act on the wearer's phone: directions opens the route to a place in the map app, play_media " +
         "plays music, podcasts or radio in a phone app, media_control pauses, resumes or skips what plays, now_playing " +
-        "says what plays, open_app opens an app on the phone by its name. Use them whenever the wearer asks for these, without asking first; say it was done only when the " +
+        "says what plays, open_app opens an app on the phone by its name, where_am_i says the town the wearer is in, weather gives the " +
+        "forecast (use it for any weather question instead of searching). Use them whenever the wearer asks for these, without asking first; say it was done only when the " +
         "tool says so."
 
     /** Name, description and input schema of each tool. */
@@ -87,6 +91,11 @@ internal class PhoneTools(private val phone: Phone) {
         Triple(
             "open_app", "Open an app on the phone by its name, such as Maps, Spotify or WhatsApp.",
             schema("app" to text("The app's name as the wearer said it."), required = "app"),
+        ),
+        Triple("where_am_i", "The town the wearer is in now, from the phone's location.", schema()),
+        Triple(
+            "weather", "The weather now, today and tomorrow. Use it for every weather question, not a web search.",
+            schema("place" to text("A town only when the wearer names one; empty for where they are.")),
         ),
     )
 
@@ -132,6 +141,19 @@ internal class PhoneTools(private val phone: Phone) {
                 } to ToolAction(done.app.ifEmpty { PHONE }, "Open · $app", done.failure == null && !done.tapToOpen)
             }
         }
+        "where_am_i" -> phone.whereAmI()?.let { ToolResult("The wearer is in ${it.name}.", false) to null } ?: (UNPLACED to null)
+        "weather" -> {
+            val place = input.optString("place").trim()
+            val result = runCatching {
+                val spot = if (place.isEmpty()) phone.whereAmI() else Weather.find(place)
+                when {
+                    spot != null -> ToolResult(Weather.forecast(spot), false)
+                    place.isEmpty() -> UNPLACED
+                    else -> ToolResult("No place called $place was found.", true)
+                }
+            }.getOrElse { ToolResult("The weather could not be fetched: ${it.message}", true) }
+            result to null
+        }
         "now_playing" -> phone.nowPlaying().let { now ->
             val text = now.unknown ?: (if (now.playing) "Playing" else "Paused") + " in ${now.app}: " +
                 now.title.ifEmpty { "an untitled item" } + if (now.artist.isNotEmpty()) " by ${now.artist}" else ""
@@ -153,6 +175,8 @@ internal class PhoneTools(private val phone: Phone) {
             .apply { required?.let { put("required", JSONArray().put(it)) } }
     }
 }
+
+private val UNPLACED = ToolResult("The location is not known: Visor needs the location permission, or the phone has no fix.", true)
 
 /** Who did it, in the diary, when no app is known. */
 private const val PHONE = "Phone"

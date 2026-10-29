@@ -44,9 +44,9 @@ fun notePlaces(context: Context, scope: CoroutineScope, connection: GlassesConne
     }
 }
 
-/** The phone's position: the last known one if it is fresh, otherwise a new fix, within 20 seconds. */
+/** The phone's position: the last known one if it is fresh, otherwise a new fix, within [timeoutMs]. */
 @SuppressLint("MissingPermission")
-private suspend fun here(context: Context): Location? {
+internal suspend fun here(context: Context, timeoutMs: Long = FIX_TIMEOUT_MS): Location? {
     if (!context.allows(Manifest.permission.ACCESS_FINE_LOCATION) && !context.allows(Manifest.permission.ACCESS_COARSE_LOCATION)) return null
     val manager = context.getSystemService(LocationManager::class.java) ?: return null
     val provider = when {
@@ -57,7 +57,7 @@ private suspend fun here(context: Context): Location? {
     val last = runCatching { manager.getLastKnownLocation(provider) }.getOrNull()
     if (last != null && System.currentTimeMillis() - last.time < FRESH_MS && last.accuracy < 100f) return last
     if (Build.VERSION.SDK_INT < 30) return last
-    return withTimeoutOrNull(FIX_TIMEOUT_MS) {
+    return withTimeoutOrNull(timeoutMs) {
         suspendCancellableCoroutine { done ->
             val cancel = CancellationSignal()
             done.invokeOnCancellation { cancel.cancel() }

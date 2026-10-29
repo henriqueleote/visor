@@ -151,9 +151,12 @@ fun AssistantSettingsScreen(open: (NavKey) -> Unit, model: AssistantViewModel = 
                     } else null,
                     if (config.provider == Provider.CLAUDE_SUBSCRIPTION) row {
                         val up = check is KeyCheck.Works
+                        // The bridge names its version in its model's name ("Claude Code, bridge 1.1.0").
+                        val version = (check as? KeyCheck.Works)?.models?.firstOrNull { it.name != it.id }?.name
                         RowFrame(
                             stringResource(R.string.ai_bridge), onClick = null,
                             sub = (bridgeNote ?: stringResource(if (up) R.string.ai_bridge_up else R.string.ai_bridge_down)) +
+                                version?.let { " $it." }.orEmpty() +
                                 "\n" + stringResource(R.string.ai_bridge_note),
                         ) {
                             ActionPill(

@@ -40,7 +40,7 @@ suspend fun listModels(config: AssistantConfig): List<ModelInfo> = withContext(D
             val data = page.optJSONArray("data")
             (0 until (data?.length() ?: 0)).map { i ->
                 val m = data!!.getJSONObject(i)
-                ModelInfo(m.getString("id"), m.getString("id"), m.optLong("created"))
+                ModelInfo(m.getString("id"), m.optString("name").ifEmpty { m.getString("id") }, m.optLong("created"))
             }
         }
     }.sortedByDescending { it.created }

@@ -30,6 +30,10 @@ import com.macedonga.visor.core.assistant.MediaControl
 import com.macedonga.visor.core.assistant.NowPlaying
 import com.macedonga.visor.core.assistant.Phone
 import com.macedonga.visor.core.assistant.PhoneDone
+import com.macedonga.visor.core.assistant.Spot
+import com.macedonga.visor.gallery.PlaceNames
+import com.macedonga.visor.gallery.here
+import java.util.Locale
 import com.macedonga.visor.notify.MirrorListener
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
@@ -146,6 +150,13 @@ class PhoneActions @Inject constructor(@ApplicationContext private val context: 
         note("Opening $label")
         val launch = pm.getLaunchIntentForPackage(pkg) ?: return PhoneDone(label, "$label has no screen to open")
         return open(launch, OPEN_ID, context.getString(R.string.phone_open, label), label)
+    }
+
+    override suspend fun whereAmI(): Spot? {
+        // A town is enough for local questions, so a short wait for a fix; the glasses wait for the answer.
+        val at = here(context, timeoutMs = 5_000) ?: return null
+        val name = PlaceNames.of(context, at.latitude, at.longitude) ?: "%.2f, %.2f".format(Locale.ROOT, at.latitude, at.longitude)
+        return Spot(name, at.latitude, at.longitude)
     }
 
     override fun nowPlaying(): NowPlaying {
