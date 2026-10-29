@@ -1,6 +1,11 @@
 package com.macedonga.visor.settings
 
 import android.util.Base64
+import com.macedonga.visor.ui.VisorIcons
+import androidx.compose.ui.draw.rotate
+import androidx.compose.material3.Icon
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -123,26 +128,47 @@ private fun StructuredDialog(
     }
 }
 
-/** Every field the schema names for [type], with what the data holds; unknown fields ride along unchanged. */
+/**
+ * Every field the schema names for [type], with what the data holds; unknown fields ride along unchanged. [entry]: an
+ * entry of a list, whose first field, when it is a choice already made, says which thing the entry is for ("WhatsApp")
+ * and is shown as its title rather than as a choice: picking another would turn the entry into that one's.
+ */
 @Composable
-private fun MessageEditor(schema: ProtoSchema, type: String, fields: List<ProtoField>, editable: Boolean, onChange: (List<ProtoField>) -> Unit) {
+private fun MessageEditor(schema: ProtoSchema, type: String, fields: List<ProtoField>, editable: Boolean, entry: Boolean = false, onChange: (List<ProtoField>) -> Unit) {
     val specs = schema.messages[type].orEmpty()
     for (f in specs) {
         val present = fields.filter { it.number == f.number }
         when {
+            // The entry's name is its card's header.
+            entry && f == specs.first() && entryName(schema, type, fields) != null -> Unit
+
             f.type == "message" && f.repeated -> {
                 Section(f.label)
                 present.forEachIndexed { i, item ->
                     EntryCard {
                         val child = parseProto(item.bytes)
-                        if (child == null) {
-                            Line("This entry cannot be read; it is kept as it is.", secondary = true)
-                        } else {
-                            MessageEditor(schema, f.ref.orEmpty(), child, editable) { updated ->
-                                onChange(replaceNth(fields, f.number, i, ProtoField(f.number, 2, bytes = encodeProto(updated))))
+                        // A named entry starts folded, showing what it is and which switches are on.
+                        val name = child?.let { entryName(schema, f.ref.orEmpty(), it) }
+                        var expanded by remember(i, name) { mutableStateOf(name == null) }
+                        if (name != null) {
+                            Row(Modifier.fillMaxWidth().clickable { expanded = !expanded }, verticalAlignment = Alignment.CenterVertically) {
+                                Column(Modifier.weight(1f)) {
+                                    Text(name, style = Visor.type.title, color = Visor.colors.textPrimary)
+                                    if (!expanded) Text(switchesOn(schema, f.ref.orEmpty(), child), style = Visor.type.label, color = Visor.colors.textSecondary)
+                                }
+                                Icon(VisorIcons.ChevronDown, if (expanded) "Fold" else "Unfold", Modifier.size(20.dp).rotate(if (expanded) 180f else 0f), tint = Visor.colors.textTertiary)
                             }
                         }
-                        if (editable) TextButton(onClick = { onChange(removeNth(fields, f.number, i)) }) { Text("Remove") }
+                        if (expanded) {
+                            if (child == null) {
+                                Line("This entry cannot be read; it is kept as it is.", secondary = true)
+                            } else {
+                                MessageEditor(schema, f.ref.orEmpty(), child, editable, entry = true) { updated ->
+                                    onChange(replaceNth(fields, f.number, i, ProtoField(f.number, 2, bytes = encodeProto(updated))))
+                                }
+                            }
+                            if (editable) TextButton(onClick = { onChange(removeNth(fields, f.number, i)) }) { Text("Remove") }
+                        }
                     }
                 }
                 if (present.isEmpty()) Line("None.", secondary = true)
@@ -216,6 +242,18 @@ private fun MessageEditor(schema: ProtoSchema, type: String, fields: List<ProtoF
     val unknown = fields.count { field -> specs.none { it.number == field.number } }
     if (unknown > 0) Line("$unknown more field${if (unknown == 1) "" else "s"} this mapping does not name, kept as they are.", secondary = true)
 }
+
+/** What a list entry is for, from its first field when that is a choice already made ("WhatsApp"). */
+private fun entryName(schema: ProtoSchema, type: String, fields: List<ProtoField>): String? {
+    val first = schema.messages[type]?.firstOrNull()?.takeIf { it.type == "enum" } ?: return null
+    val v = fields.firstOrNull { it.number == first.number }?.varint?.takeIf { it != 0L } ?: return null
+    return schema.enums[first.ref].orEmpty().firstOrNull { it.value == v.toString() }?.label ?: "Value $v"
+}
+
+/** A folded entry's line: the switches that are on, or that none is. */
+private fun switchesOn(schema: ProtoSchema, type: String, fields: List<ProtoField>): String =
+    schema.messages[type].orEmpty().filter { f -> f.type == "bool" && fields.any { it.number == f.number && it.varint != 0L } }
+        .joinToString(" · ") { it.label }.ifEmpty { "All off" }
 
 @Composable
 private fun EntryCard(content: @Composable () -> Unit) {
