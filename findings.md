@@ -19,15 +19,7 @@ Ray-Ban Meta glasses ──Bluetooth──> Visor (Android app)
 
 ## Setup on the phone
 
-1. Install Termux and its add-ons (`com.termux`, `com.termux.api`) from F-Droid or GitHub.
-2. In Termux: `pkg install proot-distro openssh`, then `proot-distro install ubuntu` and `proot-distro login ubuntu`.
-3. In Ubuntu: `apt install nodejs npm`, `npm install -g @anthropic-ai/claude-code`, run `claude` once and log in with the subscription.
-4. Put `bridge.js` (this repo's root) in `/root` of the proot. Optional `control.sh {start|stop|status}` there keeps a PID file for starting it by hand.
-5. For the app's Start/Stop button: add `allow-external-apps = true` to `~/.termux/termux.properties` in Termux, run `termux-reload-settings`, then tap **Allow** on the Bridge row in Visor. Turn off battery optimisation for Termux.
-6. In Visor: Settings > Meta AI > Provider > **Claude subscription**. Server `http://127.0.0.1:8080/v1`, model `claude-code`, key blank.
-7. For music by voice: start something in Spotify (or another media app) once, so it has an active media session, and set the app in Visor's media settings.
-
-Earlier bridges on the phone sit next to it as `bridge.js.bak` (the original) and `.v2` to `.v6`.
+Step by step in [SETUP.md](SETUP.md). The author's phone also has a private `control.sh {start|stop|status}` (PID file, for starting by hand) and older bridges as `bridge.js.bak` and `.v2` to `.v6`; none of that is needed.
 
 ## The Visor side (changes in this fork)
 
@@ -79,7 +71,7 @@ Keep fork changes in these few places (and new files) so `git merge upstream/mai
 
 **Meta's own AI is out of reach.** With Visor as the assistant, nothing hands "Hey Meta" to Meta's real assistant. Doing it would mean Visor calling Meta's private backend with the Meta login: unsupported, fragile, and a terms risk. Using Meta's AI means the Meta app owns the glasses again, which stops Visor.
 
-**The proot kills what it started.** A bridge started inside a proot session dies when that session or command ends. That is why the app's Start runs Node as the command itself, and why `control.sh start` only works while the Ubuntu shell stays open.
+**The proot kills what it started.** A bridge started inside a proot session dies when that session or command ends. That is why the app's Start runs Node as the command itself, and why starting it by hand only works while the Ubuntu shell stays open.
 
 **Tried on the phone and glasses.** Text answers, follow-ups, "thanks" and other closings, music, photo descriptions, opening apps by name, quiet after actions, the three provider tabs and Try it, the Bridge row status, Start keeping the bridge up for minutes. Not tried: the Home Assistant route, the 10-minute idle restart, Start from the background.
 
@@ -88,7 +80,7 @@ Keep fork changes in these few places (and new files) so `git merge upstream/mai
 | Symptom | Cause and fix |
 |---|---|
 | Glasses say "Sorry, I couldn't get an answer", log has `401 invalid x-api-key` | Provider is Claude API, so Visor called api.anthropic.com. Pick Claude subscription. |
-| Same message, nothing in the bridge log | Bridge not running. Check the Bridge row, or `./control.sh status`. |
+| Same message, nothing in the bridge log | Bridge not running. Check the Bridge row, or `curl http://127.0.0.1:8080/v1/models` in Termux. |
 | Bridge died after leaving the Ubuntu shell | See "The proot kills what it started". Use the Start button. |
 | The glasses say "make sure Meta AI is active and Bluetooth is connected" | Visor's link to the glasses is down (log: "Link: lost them", "reaching the glasses"). Open Visor, wait for Home to show them connected, and ask again. |
 | "Hey Jarvis" does nothing, "Hey Meta" works | The custom word needs the US language pack; see the finding above. Switch back to US English, restart the glasses, teach the word again. |
