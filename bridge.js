@@ -6,7 +6,7 @@ const path = require('path');
 const { randomUUID } = require('crypto');
 
 // Shown in Visor's Bridge row. Major.minor.patch: patch for fixes and prompt tweaks, minor for new abilities.
-const VERSION = '1.1.0';
+const VERSION = '1.2.0';
 const PORT =Number(process.env.BRIDGE_PORT) || 8080;
 const MODEL = process.env.CLAUDE_MODEL || 'haiku';
 // Optional: other apps on the phone can reach a loopback port, so set this and Visor's API key to the same secret.
@@ -79,21 +79,27 @@ function reset() {
 }
 
 let queue = Promise.resolve();
-function ask(content, tools) {
-  const run = queue.then(() => send(content, tools));
+function ask(content, tools, memory) {
+  const run = queue.then(() => send(content, tools, memory));
   queue = run.catch(() => {});
   return run;
 }
 
-function send(content, tools) {
+function send(content, tools, memory) {
   return new Promise((resolve, reject) => {
     if (worker && worker.turns >= MAX_TURNS) reset();
     const w = worker || (worker = start());
-    // The warm process keeps the list it was given, so it is sent again only when it changes.
+    // The warm process keeps what it was given, so the tool list and the memories go again only when they change.
+    const intro = [];
     if (tools && w.catalog !== tools) {
-      content = [{ type: 'text', text: tools }, ...content];
+      intro.push(tools);
       w.catalog = tools;
     }
+    if (memory && w.memory !== memory) {
+      intro.push('What you know about the wearer, from Visor (it replaces any earlier version):' + memory);
+      w.memory = memory;
+    }
+    content = [...intro.map(text => ({ type: 'text', text })), ...content];
     const settle = (fn, value) => () => { clearTimeout(timer); w.pending = null; fn(value); };
     const timer = setTimeout(() => { reset(); reject(new Error('timeout')); }, TIMEOUT_MS);
     w.pending = {
@@ -142,6 +148,19 @@ function catalog(tools) {
     'To use one, reply with exactly one line and nothing else: TOOL_CALL {"name": "<tool>", "arguments": {...}}. ' +
     'Its result comes back as a TOOL_RESULT line; then answer the wearer in one or two short sentences. ' +
     'Use a tool only when the wearer asks for an action or a fact that needs it.';
+}
+
+// The memories part of Visor's system prompt: how to keep facts and the facts kept. The rest of that prompt is
+// written for models that start fresh each time, so it stays out. shortcut: tied to Brain.kt's wording; update both.
+const MEMORY_START = ' You can keep lasting facts';
+const MEMORY_AFTER = [" You can also act on the wearer's phone", ' After each answer the glasses keep listening', " The glasses' photo comes"];
+function memory(messages) {
+  const system = (messages.find(m => m.role === 'system') || {}).content;
+  if (typeof system !== 'string') return null;
+  const from = system.indexOf(MEMORY_START);
+  if (from < 0) return null;
+  const ends = MEMORY_AFTER.map(s => system.indexOf(s, from)).filter(i => i > 0);
+  return system.slice(from, ends.length ? Math.min(...ends) : system.length);
 }
 
 // Tool results since the wearer's last question: a model that keeps calling tools is stopped after MAX_TOOL_ROUNDS.
@@ -253,7 +272,7 @@ const server = http.createServer((req, res) => {
 
     const started = Date.now();
     try {
-      const answer = await ask(content, list);
+      const answer = await ask(content, list, memory(messages));
       const done = new RegExp(END.source, 'i').test(answer);
       const call = useTools ? parseCall(answer, tools) : null;
       console.log(`[${new Date().toISOString()}] answered in ${Date.now() - started} ms` +

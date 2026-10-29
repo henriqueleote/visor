@@ -90,6 +90,8 @@ fun AssistantSettingsScreen(open: (NavKey) -> Unit, model: AssistantViewModel = 
     var check by remember { mutableStateOf<KeyCheck>(KeyCheck.None) }
     var bridgeTick by remember { mutableStateOf(0) }
     var bridgeNote by remember { mutableStateOf<String?>(null) }
+    // True while the bridge starts, false while it stops, null otherwise.
+    var bridgeBusy by remember { mutableStateOf<Boolean?>(null) }
     var termux by remember { mutableStateOf(context.checkSelfPermission(TermuxBridge.PERMISSION) == PackageManager.PERMISSION_GRANTED) }
     val askTermux = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { termux = it }
     LaunchedEffect(config.provider, config.apiKey, config.baseUrl, bridgeTick) {
@@ -109,6 +111,8 @@ fun AssistantSettingsScreen(open: (NavKey) -> Unit, model: AssistantViewModel = 
     var trying by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val claude = config.provider == Provider.CLAUDE
+    // The bridge picks its own model and keeps its own conversation, so those rows do nothing for it.
+    val subscription = config.provider == Provider.CLAUDE_SUBSCRIPTION
     val known = model.settings.specs.keys
 
     SettingsPage(stringResource(R.string.topic_meta_ai), stringResource(R.string.ai_lede)) {
@@ -146,7 +150,7 @@ fun AssistantSettingsScreen(open: (NavKey) -> Unit, model: AssistantViewModel = 
                             },
                         )
                     },
-                    if (!claude) row {
+                    if (!claude && !subscription) row {
                         ValueRow(stringResource(R.string.ai_base_url), config.baseUrl, onClick = { sheet = "url" })
                     } else null,
                     if (config.provider == Provider.CLAUDE_SUBSCRIPTION) row {
@@ -155,23 +159,36 @@ fun AssistantSettingsScreen(open: (NavKey) -> Unit, model: AssistantViewModel = 
                         val version = (check as? KeyCheck.Works)?.models?.firstOrNull { it.name != it.id }?.name
                         RowFrame(
                             stringResource(R.string.ai_bridge), onClick = null,
-                            sub = (bridgeNote ?: stringResource(if (up) R.string.ai_bridge_up else R.string.ai_bridge_down)) +
-                                version?.let { " $it." }.orEmpty() +
+                            sub = (bridgeNote ?: (stringResource(if (up) R.string.ai_bridge_up else R.string.ai_bridge_down) + version?.let { " $it." }.orEmpty())) +
                                 "\n" + stringResource(R.string.ai_bridge_note),
+                            // While it starts or stops, a spinner stands in for the button.
+                            busy = bridgeBusy != null,
                         ) {
-                            ActionPill(
+                            if (bridgeBusy == null) ActionPill(
                                 stringResource(if (!termux) R.string.access_allow else if (up) R.string.ai_bridge_stop else R.string.ai_bridge_start),
                                 {
                                     if (!termux) askTermux.launch(TermuxBridge.PERMISSION) else {
-                                        bridgeNote = TermuxBridge.run(context, !up)
-                                        scope.launch { delay(6_000); bridgeTick++ }
+                                        val start = !up
+                                        bridgeNote = TermuxBridge.run(context, start)
+                                        if (bridgeNote == null) {
+                                            bridgeBusy = start
+                                            // Asks until the bridge answers (or stops answering), for up to 15 s.
+                                            scope.launch {
+                                                for (i in 1..20) {
+                                                    delay(750)
+                                                    if (runCatching { listModels(config) }.isSuccess == start) break
+                                                }
+                                                bridgeBusy = null
+                                                bridgeTick++
+                                            }
+                                        }
                                     }
                                 },
                                 modifier = Modifier.padding(start = 12.dp),
                             )
                         }
                     } else null,
-                    {
+                    if (subscription) null else row {
                         val (sub, problem) = when (val c = check) {
                             KeyCheck.None -> (if (claude) stringResource(R.string.ai_key_needed) else stringResource(R.string.ai_key_optional)) to null
                             KeyCheck.Checking -> stringResource(R.string.ai_key_checking) to null
@@ -185,14 +202,14 @@ fun AssistantSettingsScreen(open: (NavKey) -> Unit, model: AssistantViewModel = 
                             onClick = { sheet = "key" }, sub = sub, problem = problem, busy = check == KeyCheck.Checking,
                         )
                     },
-                    {
+                    if (subscription) null else row {
                         ValueRow(
                             stringResource(R.string.ai_model),
                             modelWords(config.model.ifBlank { if (claude) DEFAULT_CLAUDE else "" }).ifEmpty { stringResource(R.string.settings_not_set) },
                             onClick = { sheet = "model" },
                         )
                     },
-                    {
+                    if (subscription) null else row {
                         ValueRow(
                             stringResource(R.string.ai_lines_model),
                             if (config.linesModel.isBlank()) stringResource(R.string.ai_same_model) else modelWords(config.linesModel),
@@ -241,7 +258,7 @@ fun AssistantSettingsScreen(open: (NavKey) -> Unit, model: AssistantViewModel = 
                     { VisorToggleRow(model.toggles.byId("vision")!!, sub = stringResource(R.string.ai_vision_sub)) },
                     if (claude) row { VisorToggleRow(model.toggles.byId("web")!!, sub = stringResource(R.string.ai_web_sub)) } else null,
                     { VisorToggleRow(model.toggles.byId("quiet_actions")!!, sub = stringResource(R.string.ai_quiet_actions_sub)) },
-                    {
+                    if (subscription) null else row {
                         PillsRow(
                             stringResource(R.string.ai_memory_window),
                             listOf(5, 10, 20, 30).map { it to stringResource(R.string.ai_minutes, it) },
@@ -258,7 +275,7 @@ fun AssistantSettingsScreen(open: (NavKey) -> Unit, model: AssistantViewModel = 
                             onPick = { s -> model.store.update { it.copy(answerWaitSeconds = s) } },
                         )
                     },
-                    {
+                    if (subscription) null else row {
                         ValueRow(
                             stringResource(R.string.ai_instructions),
                             config.instructions.lineSequence().firstOrNull()?.takeIf { it.isNotBlank() } ?: stringResource(R.string.ai_instructions_none),
