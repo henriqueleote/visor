@@ -5,10 +5,13 @@ const os = require('os');
 const path = require('path');
 const { randomUUID } = require('crypto');
 
-// Shown in Visor's Bridge row. Major.minor.patch: patch for fixes and prompt tweaks, minor for new abilities.
-const VERSION = '1.2.0';
+// Shown in Visor's Bridge row. The minor number goes up once per commit, the patch with each build tried between commits.
+const VERSION = '1.3.4';
 const PORT =Number(process.env.BRIDGE_PORT) || 8080;
 const MODEL = process.env.CLAUDE_MODEL || 'haiku';
+// What Visor's model picker may ask for; anything else (as the old 'claude-code') gets MODEL.
+const MODELS = ['haiku', 'sonnet', 'opus'];
+const SESSIONS = path.join(os.homedir(), '.visor-bridge', 'sessions.json');
 // Optional: other apps on the phone can reach a loopback port, so set this and Visor's API key to the same secret.
 const TOKEN = process.env.BRIDGE_TOKEN || '';
 const TIMEOUT_MS = 40000;
@@ -30,6 +33,8 @@ const SYSTEM = 'You are a voice assistant on smart glasses. Your answer is spoke
 const END_TOOL = 'end_conversation';
 const END = /\s*END_CONVERSATION\W*/gi;
 const TOOL_CALL = /TOOL_CALL\s*(\{[\s\S]*\})/;
+// The wake phrase starts the transcript ("hey jarvis what's..."); its word is the name the wearer gave the assistant.
+const WAKE = /^\s*(?:hey|hi|ok|okay)\s+([a-z]+)\b/i;
 const FALLBACK = "Sorry, I couldn't process that request.";
 
 // One long-lived Claude Code process answers every question: starting `claude -p` per request is most of the wait.
@@ -37,15 +42,41 @@ let worker = null;
 // Tool call ids the bridge handed to Visor, so a result can be named when it comes back.
 const calls = new Map();
 
-function start() {
+// Visor's model setting: the model, then the tab's switches and the custom wake word, as in "sonnet;resume;name=Jarvis".
+// shortcut: the switches ride in the model name so Visor's core needs no new setting; give them fields if this stays.
+function options(name) {
+  const [model, ...flags] = String(name || '').split(';');
+  return {
+    model: MODELS.includes(model) ? model : MODEL,
+    resume: flags.includes('resume'),
+    name: (flags.find(f => f.startsWith('name=')) || '').slice(5).replace(/^(hey|hi|ok|okay)\s+/i, '').trim(),
+  };
+}
+const key = o => [o.model, o.resume && 'resume'].filter(Boolean).join(';');
+
+// The last conversation of each model, kept when resuming is on, so switching back or restarting picks it up.
+let sessions = {};
+try { sessions = JSON.parse(fs.readFileSync(SESSIONS, 'utf8')); } catch (e) {}
+function keep(model, id) {
+  if (sessions[model] === id) return;
+  sessions[model] = id;
+  try { fs.writeFileSync(SESSIONS, JSON.stringify(sessions)); } catch (e) {}
+}
+
+// fresh: a new conversation even when resuming is on (after an error, the idle time or MAX_TURNS).
+function start(o = options(), fresh = false) {
   fs.mkdirSync(WORKDIR, { recursive: true });
+  const model = o.model;
+  const resume = o.resume && !fresh && sessions[model];
   const child = spawn('claude', [
     '-p', '--input-format', 'stream-json', '--output-format', 'stream-json', '--verbose',
-    '--model', MODEL, '--system-prompt', SYSTEM,
+    '--model', model, '--system-prompt', SYSTEM + ` You run on Claude ${model[0].toUpperCase() + model.slice(1)}; asked your model, say just that, without who made it.`,
     // Web search only: answers that need fresh facts. No shell, files or fetching pages.
-    '--tools', 'WebSearch', '--allowedTools', 'WebSearch', '--strict-mcp-config', '--disable-slash-commands', '--setting-sources', '', '--no-session-persistence',
+    '--tools', 'WebSearch', '--allowedTools', 'WebSearch', '--strict-mcp-config', '--disable-slash-commands', '--setting-sources', '',
+    ...(o.resume ? (resume ? ['--resume', resume] : []) : ['--no-session-persistence']),
   ], { cwd: WORKDIR, stdio: ['pipe', 'pipe', 'pipe'] });
-  const w = { child, buf: '', err: '', pending: null, turns: 0, last: Date.now() };
+  console.log(`[${new Date().toISOString()}] Claude ${key(o)}${resume ? ` resuming ${resume}` : ''}`);
+  const w = { child, opts: o, model, buf: '', err: '', pending: null, turns: 0, last: Date.now() };
   const lost = error => {
     if (worker === w) worker = null;
     if (w.pending) w.pending.reject(error);
@@ -58,6 +89,7 @@ function start() {
       w.buf = w.buf.slice(i + 1);
       let event;
       try { event = JSON.parse(line); } catch (e) { continue; }
+      if (event.type === 'result' && o.resume && event.session_id) keep(model, event.session_id);
       if (event.type === 'result' && w.pending) w.pending.resolve(event);
     }
   });
@@ -69,9 +101,9 @@ function start() {
 }
 
 // Drops the conversation; the next one starts on a process that is already up.
-function reset() {
+function reset(o = worker ? worker.opts : options(), fresh = true) {
   const old = worker;
-  worker = start();
+  worker = start(o, fresh);
   if (old) {
     old.pending = null;
     old.child.kill('SIGTERM');
@@ -79,16 +111,18 @@ function reset() {
 }
 
 let queue = Promise.resolve();
-function ask(content, tools, memory) {
-  const run = queue.then(() => send(content, tools, memory));
+function ask(content, tools, memory, o, name) {
+  const run = queue.then(() => send(content, tools, memory, o, name));
   queue = run.catch(() => {});
   return run;
 }
 
-function send(content, tools, memory) {
+function send(content, tools, memory, o, name) {
   return new Promise((resolve, reject) => {
+    // Another model or switch in Visor means a new process: its last conversation when resuming, else a fresh one.
     if (worker && worker.turns >= MAX_TURNS) reset();
-    const w = worker || (worker = start());
+    else if (worker && key(worker.opts) !== key(o)) reset(o, false);
+    const w = worker || (worker = start(o));
     // The warm process keeps what it was given, so the tool list and the memories go again only when they change.
     const intro = [];
     if (tools && w.catalog !== tools) {
@@ -98,6 +132,12 @@ function send(content, tools, memory) {
     if (memory && w.memory !== memory) {
       intro.push('What you know about the wearer, from Visor (it replaces any earlier version):' + memory);
       w.memory = memory;
+    }
+    if (name && w.name !== name) {
+      const label = 'Claude ' + w.model[0].toUpperCase() + w.model.slice(1);
+      intro.push(`The wearer woke you with "hey ${name}", so your name is ${name}: answer to it and call yourself ${name}. ` +
+        `Asked your name, give only that; asked what model you are, say just ${label}, never who made it.`);
+      w.name = name;
     }
     content = [...intro.map(text => ({ type: 'text', text })), ...content];
     const settle = (fn, value) => () => { clearTimeout(timer); w.pending = null; fn(value); };
@@ -219,7 +259,8 @@ const server = http.createServer((req, res) => {
     res.writeHead(200, { 'Content-Type': 'application/json' });
     return res.end(JSON.stringify({
       object: 'list',
-      data: [{ id: 'claude-code', name: `Claude Code, bridge ${VERSION}`, object: 'model', created: 1700000000, owned_by: 'local' }],
+      data: [{ id: 'claude-code', name: `Claude Code, bridge ${VERSION}` }, ...MODELS.map(id => ({ id }))]
+        .map(m => ({ ...m, object: 'model', created: 1700000000, owned_by: 'local' })),
     }));
   }
 
@@ -272,7 +313,12 @@ const server = http.createServer((req, res) => {
 
     const started = Date.now();
     try {
-      const answer = await ask(content, list, memory(messages));
+      const wake = !isResult && spoken.match(WAKE);
+      // The word just said, else the glasses' custom wake word from Visor, else the last one said (also across restarts).
+      const o = options(request.model);
+      if (wake) keep('_name', wake[1][0].toUpperCase() + wake[1].slice(1).toLowerCase());
+      const name = (wake && sessions._name) || o.name || sessions._name || null;
+      const answer = await ask(content, list, memory(messages), o, name);
       const done = new RegExp(END.source, 'i').test(answer);
       const call = useTools ? parseCall(answer, tools) : null;
       console.log(`[${new Date().toISOString()}] answered in ${Date.now() - started} ms` +
@@ -289,7 +335,7 @@ const server = http.createServer((req, res) => {
 
 server.listen(PORT, '127.0.0.1', () => {
   worker = start();
-  setInterval(() => { if (worker && worker.turns && Date.now() - worker.last > IDLE_MS) reset(); }, 60000).unref();
+  setInterval(() => { if (worker && worker.turns && Date.now() - worker.last > IDLE_MS) reset(worker.opts, false); }, 60000).unref();
   console.log(`Claude voice bridge ${VERSION} on http://127.0.0.1:${PORT} (model ${MODEL})`);
 });
 

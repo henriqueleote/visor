@@ -479,7 +479,7 @@
     <string name="ai_bridge_stop">Stop</string>
     <string name="ai_bridge_up">Running in Termux.</string>
     <string name="ai_bridge_down">Not running.</string>
-    <string name="ai_bridge_note">The Claude subscription only works while the bridge is running. Starting it from here needs Termux with allow-external-apps on.</string>
+    <string name="ai_bridge_note">Claude answers only while the bridge runs in Termux.</string>
     <string name="ai_openai_compatible">OpenAI-compatible</string>
     <string name="ai_base_url">Server</string>
     <string name="ai_key">API key</string>
@@ -518,6 +518,13 @@
     <string name="ai_instructions_none">None</string>
     <string name="ai_instructions_sub">Added to every question: how to address you, what to keep in mind.</string>
     <string name="ai_try">Try it</string>
+    <string name="ai_try_bridge">Test the connection</string>
+    <string name="ai_bridge_model_sub">Haiku answers fastest. Sonnet and Opus are smarter but slower and use up the plan sooner. Changing it starts a new conversation.</string>
+    <string name="ai_bridge_switch_title">Switch to %1$s?</string>
+    <string name="ai_bridge_switch_text">Claude starts a new conversation and forgets what you were just talking about. Your memories stay.</string>
+    <string name="ai_bridge_switch">Switch</string>
+    <string name="ai_bridge_resume">Resume conversations</string>
+    <string name="ai_bridge_resume_sub">Each model picks up its last conversation, after switching back or a bridge restart. Long conversations use more of the plan.</string>
     <string name="ai_try_asking">Asking…</string>
     <string name="ai_try_failed">It did not answer: %1$s</string>
     <string name="ai_memories_sub">What the model chose to keep about you</string>

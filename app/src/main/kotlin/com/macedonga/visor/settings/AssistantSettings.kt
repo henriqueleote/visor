@@ -17,6 +17,8 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -107,12 +109,25 @@ fun AssistantSettingsScreen(open: (NavKey) -> Unit, model: AssistantViewModel = 
     }
 
     var sheet by remember { mutableStateOf<String?>(null) }
+    var switchTo by remember { mutableStateOf<String?>(null) }
     var trial by remember { mutableStateOf("") }
     var trying by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val claude = config.provider == Provider.CLAUDE
     // The bridge picks its own model and keeps its own conversation, so those rows do nothing for it.
     val subscription = config.provider == Provider.CLAUDE_SUBSCRIPTION
+    // The bridge reads its model and switches from the model setting, as "sonnet;resume".
+    val bridgeParts = config.model.split(';')
+    val bridgeBase = bridgeParts[0].takeIf { it in listOf("sonnet", "opus") } ?: "haiku"
+    val resume = "resume" in bridgeParts
+    // The glasses' custom wake word, as the wake word screen saved it: the bridge's name for itself on a tap.
+    // shortcut: read when this tab opens, so a word enrolled later reaches the bridge on the next visit here.
+    val wakeName = remember { context.getSharedPreferences("wake_word", Context.MODE_PRIVATE).getString("enrolled", null)?.trim()?.takeIf { it.isNotEmpty() && ';' !in it } }
+    fun bridgeModel(base: String = bridgeBase, r: Boolean = resume) =
+        listOfNotNull(base, "resume".takeIf { r }, wakeName?.let { "name=$it" }).joinToString(";")
+    LaunchedEffect(subscription, config.model) {
+        if (subscription && config.model != bridgeModel()) model.store.update { it.copy(model = bridgeModel()) }
+    }
     val known = model.settings.specs.keys
 
     SettingsPage(stringResource(R.string.topic_meta_ai), stringResource(R.string.ai_lede)) {
@@ -143,7 +158,7 @@ fun AssistantSettingsScreen(open: (NavKey) -> Unit, model: AssistantViewModel = 
                                 model.store.update {
                                     // The bridge's own address and model, unless the address already points at this phone.
                                     if (p == Provider.CLAUDE_SUBSCRIPTION) it.copy(
-                                        provider = p, model = "claude-code",
+                                        provider = p, model = "haiku",
                                         baseUrl = it.baseUrl.takeIf { u -> u.startsWith("http://127.0.0.1") } ?: "http://127.0.0.1:8080/v1",
                                     ) else it.copy(provider = p)
                                 }
@@ -159,7 +174,7 @@ fun AssistantSettingsScreen(open: (NavKey) -> Unit, model: AssistantViewModel = 
                         val version = (check as? KeyCheck.Works)?.models?.firstOrNull { it.name != it.id }?.name
                         RowFrame(
                             stringResource(R.string.ai_bridge), onClick = null,
-                            sub = (bridgeNote ?: (stringResource(if (up) R.string.ai_bridge_up else R.string.ai_bridge_down) + version?.let { " $it." }.orEmpty())) +
+                            sub = (bridgeNote ?: (stringResource(if (up) R.string.ai_bridge_up else R.string.ai_bridge_down) + version?.substringAfterLast("bridge ")?.let { " · v$it" }.orEmpty())) +
                                 "\n" + stringResource(R.string.ai_bridge_note),
                             // While it starts or stops, a spinner stands in for the button.
                             busy = bridgeBusy != null,
@@ -202,6 +217,28 @@ fun AssistantSettingsScreen(open: (NavKey) -> Unit, model: AssistantViewModel = 
                             onClick = { sheet = "key" }, sub = sub, problem = problem, busy = check == KeyCheck.Checking,
                         )
                     },
+                    if (subscription) row {
+                        // The bridge runs whichever of these Visor asks for; an older "claude-code" means its default, Haiku.
+                        PillsRow(
+                            stringResource(R.string.ai_model),
+                            listOf("haiku" to "Haiku", "sonnet" to "Sonnet", "opus" to "Opus"),
+                            bridgeBase,
+                            // With the bridge up and without resuming, a conversation may be going that a new model does not keep.
+                            onPick = { m ->
+                                if (m != bridgeBase) {
+                                    if (check is KeyCheck.Works && !resume) switchTo = m else model.store.update { it.copy(model = bridgeModel(m)) }
+                                }
+                            },
+                            sub = stringResource(R.string.ai_bridge_model_sub),
+                        )
+                    } else null,
+                    if (subscription) row {
+                        ToggleRow(
+                            stringResource(R.string.ai_bridge_resume), resume,
+                            { on -> model.store.update { it.copy(model = bridgeModel(r = on)) } },
+                            sub = stringResource(R.string.ai_bridge_resume_sub),
+                        )
+                    } else null,
                     if (subscription) null else row {
                         ValueRow(
                             stringResource(R.string.ai_model),
@@ -216,16 +253,16 @@ fun AssistantSettingsScreen(open: (NavKey) -> Unit, model: AssistantViewModel = 
                             onClick = { sheet = "lines" }, sub = stringResource(R.string.ai_lines_model_sub),
                         )
                     },
-                    {
+                    if (subscription && check !is KeyCheck.Works) null else row {
                         // Tests the key and the model: the answer, or why there is none, comes under the row.
                         val ready = config.enabled && check !is KeyCheck.Refused
                         RowFrame(
-                            stringResource(R.string.ai_try),
+                            stringResource(if (subscription) R.string.ai_try_bridge else R.string.ai_try),
                             onClick = if (ready && !trying) ({
                                 trial = ""
                                 trying = true
                                 scope.launch {
-                                    trial = runCatching { model.assistant.ask("Say hello in one short sentence.") }.getOrElse { context.getString(R.string.ai_try_failed, it.message ?: "") }
+                                    trial = runCatching { model.assistant.ask(if (subscription) "Say hello in one short sentence and say which Claude model you are." else "Say hello in one short sentence.") }.getOrElse { context.getString(R.string.ai_try_failed, it.message ?: "") }
                                     trying = false
                                 }
                             }) else null,
@@ -306,6 +343,18 @@ fun AssistantSettingsScreen(open: (NavKey) -> Unit, model: AssistantViewModel = 
             }
         }
         featureSection(Topic.META_AI, open)
+    }
+
+    switchTo?.let { m ->
+        AlertDialog(
+            onDismissRequest = { switchTo = null },
+            title = { Text(stringResource(R.string.ai_bridge_switch_title, m.replaceFirstChar { it.uppercase() })) },
+            text = { Text(stringResource(R.string.ai_bridge_switch_text)) },
+            confirmButton = {
+                TextButton(onClick = { model.store.update { it.copy(model = bridgeModel(m)) }; switchTo = null }) { Text(stringResource(R.string.ai_bridge_switch)) }
+            },
+            dismissButton = { TextButton(onClick = { switchTo = null }) { Text(stringResource(R.string.language_cancel)) } },
+        )
     }
 
     when (sheet) {

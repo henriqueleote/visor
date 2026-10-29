@@ -491,7 +491,7 @@
     <string name="ai_bridge_stop">Остановить</string>
     <string name="ai_bridge_up">Работает в Termux.</string>
     <string name="ai_bridge_down">Не запущен.</string>
-    <string name="ai_bridge_note">Подписка Claude работает, только пока работает мост. Чтобы запускать его отсюда, в Termux должен быть включён allow-external-apps.</string>
+    <string name="ai_bridge_note">Claude отвечает, только пока мост работает в Termux.</string>
     <string name="ai_openai_compatible">Совместимый с OpenAI</string>
     <string name="ai_base_url">Адрес</string>
     <string name="ai_key">API-ключ</string>
@@ -530,6 +530,13 @@
     <string name="ai_instructions_none">Нет</string>
     <string name="ai_instructions_sub">Добавляются к каждому вопросу: как к вам обращаться, что учитывать.</string>
     <string name="ai_try">Проверить</string>
+    <string name="ai_try_bridge">Проверить соединение</string>
+    <string name="ai_bridge_model_sub">Haiku отвечает быстрее всех. Sonnet и Opus умнее, но медленнее и быстрее расходуют лимиты подписки. Смена модели начинает новый разговор.</string>
+    <string name="ai_bridge_switch_title">Переключить на %1$s?</string>
+    <string name="ai_bridge_switch_text">Claude начнёт новый разговор и забудет, о чём вы только что говорили. Воспоминания сохранятся.</string>
+    <string name="ai_bridge_switch">Переключить</string>
+    <string name="ai_bridge_resume">Продолжать разговоры</string>
+    <string name="ai_bridge_resume_sub">Каждая модель продолжает свой последний разговор после переключения или перезапуска моста. Длинные разговоры быстрее расходуют лимиты.</string>
     <string name="ai_try_asking">Спрашиваем…</string>
     <string name="ai_try_failed">Нет ответа: %1$s</string>
     <string name="ai_memories_sub">Что модель решила запомнить о вас</string>

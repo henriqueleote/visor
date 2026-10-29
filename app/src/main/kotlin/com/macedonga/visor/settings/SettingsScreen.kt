@@ -614,7 +614,9 @@ internal fun assistantWords(config: AssistantConfig): String {
         !config.enabled -> stringResource(R.string.sum_ai_off)
         !configured -> stringResource(R.string.sum_ai_unset)
         else -> listOfNotNull(
-            modelWords(config.model.ifBlank { if (config.provider == Provider.CLAUDE) DEFAULT_CLAUDE else "" }),
+            // The subscription's setting also carries the bridge's switches ("haiku;resume;name=Jarvis"): only the model is shown.
+            if (config.provider == Provider.CLAUDE_SUBSCRIPTION) "Claude " + config.model.substringBefore(';').ifBlank { "haiku" }.replaceFirstChar { it.uppercase() }
+            else modelWords(config.model.ifBlank { if (config.provider == Provider.CLAUDE) DEFAULT_CLAUDE else "" }),
             stringResource(R.string.sum_ai_glasses_voice).takeIf { config.glassesVoice },
         ).filter { it.isNotEmpty() }.joinToString(" · ")
     }
