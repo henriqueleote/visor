@@ -522,6 +522,14 @@
     <string name="ai_bridge_switch_title">Passare a %1$s?</string>
     <string name="ai_bridge_switch_text">Claude inizia una nuova conversazione e dimentica di cosa stavate parlando. I ricordi restano.</string>
     <string name="ai_bridge_switch">Cambia</string>
+    <string name="greet_section">Saluto</string>
+    <string name="greet_on">Salutami quando li indosso</string>
+    <string name="greet_on_sub">Dopo che gli occhiali sono rimasti tolti per un po\'. Con la voce del telefono, attraverso gli occhiali.</string>
+    <string name="greet_text">Saluto</string>
+    <string name="greet_after">Tolti per almeno</string>
+    <string name="greet_try">Prova il saluto</string>
+    <string name="greet_try_sub">Lo riproduce ora, negli occhiali se sono collegati.</string>
+    <string name="greet_hear">Riproduci</string>
     <string name="ai_bridge_resume">Riprendi le conversazioni</string>
     <string name="ai_bridge_resume_sub">Ogni modello riprende la sua ultima conversazione, dopo un cambio o un riavvio del bridge. Le conversazioni lunghe consumano di più il piano.</string>
     <string name="ai_try_asking">Chiedo…</string>

@@ -523,6 +523,14 @@
     <string name="ai_bridge_switch_title">Switch to %1$s?</string>
     <string name="ai_bridge_switch_text">Claude starts a new conversation and forgets what you were just talking about. Your memories stay.</string>
     <string name="ai_bridge_switch">Switch</string>
+    <string name="greet_section">Greeting</string>
+    <string name="greet_on">Greet me when I put them on</string>
+    <string name="greet_on_sub">After the glasses have been off for a while. Spoken in the phone\'s voice through the glasses.</string>
+    <string name="greet_text">Greeting</string>
+    <string name="greet_after">Off for at least</string>
+    <string name="greet_try">Try the greeting</string>
+    <string name="greet_try_sub">Plays it now, through the glasses if they are connected.</string>
+    <string name="greet_hear">Play</string>
     <string name="ai_bridge_resume">Resume conversations</string>
     <string name="ai_bridge_resume_sub">Each model picks up its last conversation, after switching back or a bridge restart. Long conversations use more of the plan.</string>
     <string name="ai_try_asking">Asking…</string>

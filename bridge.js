@@ -6,7 +6,7 @@ const path = require('path');
 const { randomUUID } = require('crypto');
 
 // Shown in Visor's Bridge row. The minor number goes up once per commit, the patch with each build tried between commits.
-const VERSION = '1.3.4';
+const VERSION = '1.4.3';
 const PORT =Number(process.env.BRIDGE_PORT) || 8080;
 const MODEL = process.env.CLAUDE_MODEL || 'haiku';
 // What Visor's model picker may ask for; anything else (as the old 'claude-code') gets MODEL.
@@ -74,7 +74,8 @@ function start(o = options(), fresh = false) {
     // Web search only: answers that need fresh facts. No shell, files or fetching pages.
     '--tools', 'WebSearch', '--allowedTools', 'WebSearch', '--strict-mcp-config', '--disable-slash-commands', '--setting-sources', '',
     ...(o.resume ? (resume ? ['--resume', resume] : []) : ['--no-session-persistence']),
-  ], { cwd: WORKDIR, stdio: ['pipe', 'pipe', 'pipe'] });
+    // No background calls (an extra one came with each new process's first question), telemetry or update checks.
+  ], { cwd: WORKDIR, stdio: ['pipe', 'pipe', 'pipe'], env: { ...process.env, CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: '1' } });
   console.log(`[${new Date().toISOString()}] Claude ${key(o)}${resume ? ` resuming ${resume}` : ''}`);
   const w = { child, opts: o, model, buf: '', err: '', pending: null, turns: 0, last: Date.now() };
   const lost = error => {
@@ -139,12 +140,21 @@ function send(content, tools, memory, o, name) {
         `Asked your name, give only that; asked what model you are, say just ${label}, never who made it.`);
       w.name = name;
     }
+    // Visor skips the result of an action that worked when it will say nothing (Quiet after actions): close that call.
+    const isResult = content[0] && content[0].type === 'text' && content[0].text.startsWith('TOOL_RESULT');
+    if (w.awaiting && !isResult) intro.unshift(`TOOL_RESULT ${w.awaiting}: done.`);
+    w.awaiting = null;
     content = [...intro.map(text => ({ type: 'text', text })), ...content];
     const settle = (fn, value) => () => { clearTimeout(timer); w.pending = null; fn(value); };
     const timer = setTimeout(() => { reset(); reject(new Error('timeout')); }, TIMEOUT_MS);
     w.pending = {
       resolve: event => {
         w.last = Date.now();
+        // Where the time went: Claude Code's own time for the turn, and its time waiting on the API (cumulative per process).
+        const u = event.usage || {};
+        w.timing = `claude ${event.duration_ms} ms, api ${event.duration_api_ms - (w.api || 0)} ms, ` +
+          `cache read ${u.cache_read_input_tokens || 0} write ${u.cache_creation_input_tokens || 0}, out ${u.output_tokens || 0}`;
+        w.api = event.duration_api_ms;
         if (event.is_error || typeof event.result !== 'string' || !event.result.trim()) {
           reset();
           settle(reject, new Error(event.result || 'Claude Code returned no text'))();
@@ -321,8 +331,9 @@ const server = http.createServer((req, res) => {
       const answer = await ask(content, list, memory(messages), o, name);
       const done = new RegExp(END.source, 'i').test(answer);
       const call = useTools ? parseCall(answer, tools) : null;
-      console.log(`[${new Date().toISOString()}] answered in ${Date.now() - started} ms` +
+      console.log(`[${new Date().toISOString()}] answered in ${Date.now() - started} ms (${worker ? worker.timing : ''})` +
         `${call ? ` (tool ${call.name})` : ''}${done ? ' (conversation ends)' : ''}`);
+      if (call && worker) worker.awaiting = call.name;
       if (call) return callReply(res, 'call_' + randomUUID().slice(0, 12), call, request.model);
       const text = answer.replace(TOOL_CALL, ' ').replace(END, ' ').trim();
       say(res, text || 'Okay.', request.model, done && offered);

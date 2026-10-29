@@ -535,6 +535,14 @@
     <string name="ai_bridge_switch_title">Переключить на %1$s?</string>
     <string name="ai_bridge_switch_text">Claude начнёт новый разговор и забудет, о чём вы только что говорили. Воспоминания сохранятся.</string>
     <string name="ai_bridge_switch">Переключить</string>
+    <string name="greet_section">Приветствие</string>
+    <string name="greet_on">Приветствовать, когда я их надеваю</string>
+    <string name="greet_on_sub">После того как очки какое-то время были сняты. Голосом телефона, через очки.</string>
+    <string name="greet_text">Приветствие</string>
+    <string name="greet_after">Сняты не меньше</string>
+    <string name="greet_try">Проверить приветствие</string>
+    <string name="greet_try_sub">Проигрывает его сейчас, через очки, если они подключены.</string>
+    <string name="greet_hear">Воспроизвести</string>
     <string name="ai_bridge_resume">Продолжать разговоры</string>
     <string name="ai_bridge_resume_sub">Каждая модель продолжает свой последний разговор после переключения или перезапуска моста. Длинные разговоры быстрее расходуют лимиты.</string>
     <string name="ai_try_asking">Спрашиваем…</string>

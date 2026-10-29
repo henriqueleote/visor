@@ -24,6 +24,9 @@ interface Phone {
     /** Where the phone is, named by its town, or null without the location permission or a fix. */
     suspend fun whereAmI(): Spot?
 
+    /** The phone's recent notifications, one line each, newest first; from the app named [app] when it is not empty. */
+    fun notifications(app: String): String
+
     fun nowPlaying(): NowPlaying
 }
 
@@ -62,7 +65,8 @@ internal class PhoneTools(private val phone: Phone) {
     val prompt = " You can also act on the wearer's phone: directions opens the route to a place in the map app, play_media " +
         "plays music, podcasts or radio in a phone app, media_control pauses, resumes or skips what plays, now_playing " +
         "says what plays, open_app opens an app on the phone by its name, where_am_i says the town the wearer is in, weather gives the " +
-        "forecast (use it for any weather question instead of searching). Use them whenever the wearer asks for these, without asking first; say it was done only when the " +
+        "forecast (use it for any weather question instead of searching), read_notifications reads the phone's " +
+        "notifications (sum them up in a sentence or two, newest first). Use them whenever the wearer asks for these, without asking first; say it was done only when the " +
         "tool says so."
 
     /** Name, description and input schema of each tool. */
@@ -93,6 +97,10 @@ internal class PhoneTools(private val phone: Phone) {
             schema("app" to text("The app's name as the wearer said it."), required = "app"),
         ),
         Triple("where_am_i", "The town the wearer is in now, from the phone's location.", schema()),
+        Triple(
+            "read_notifications", "The phone's recent notifications: messages and other apps, who and what, newest first.",
+            schema("app" to text("An app's name, only when the wearer names one (such as Telegram); otherwise leave it out.")),
+        ),
         Triple(
             "weather", "The weather now, today and tomorrow. Use it for every weather question, not a web search.",
             schema("place" to text("A town only when the wearer names one; empty for where they are.")),
@@ -142,6 +150,7 @@ internal class PhoneTools(private val phone: Phone) {
             }
         }
         "where_am_i" -> phone.whereAmI()?.let { ToolResult("The wearer is in ${it.name}.", false) to null } ?: (UNPLACED to null)
+        "read_notifications" -> ToolResult(phone.notifications(input.optString("app").trim()), false) to null
         "weather" -> {
             val place = input.optString("place").trim()
             val result = runCatching {

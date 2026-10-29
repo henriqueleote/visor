@@ -301,6 +301,7 @@ class Brain(
             val calls = message.optJSONArray("tool_calls")
             if (calls == null || calls.length() == 0 || turn == null) return said
             messages.put(message)
+            val before = turn.actions.size
             for (i in 0 until calls.length()) {
                 val call = calls.getJSONObject(i)
                 val fn = call.getJSONObject("function")
@@ -308,6 +309,10 @@ class Brain(
                 val out = runTool(fn.getString("name"), input, turn)
                 messages.put(JSONObject().put("role", "tool").put("tool_call_id", call.getString("id")).put("content", out.text))
             }
+            // Every call was an action that worked and the turn will end without a word: asking the model for words
+            // it will not say only keeps the glasses waiting (about a second and a half).
+            val acted = turn.actions.drop(before)
+            if (c.quietAfterActions && acted.size == calls.length() && acted.all { it.ok }) return said.ifBlank { "Done." }
         }
         return said
     }

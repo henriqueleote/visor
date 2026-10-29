@@ -32,6 +32,7 @@ import com.macedonga.visor.core.assistant.Phone
 import com.macedonga.visor.core.assistant.PhoneDone
 import com.macedonga.visor.core.assistant.Spot
 import com.macedonga.visor.gallery.PlaceNames
+import com.macedonga.visor.notify.recentNotices
 import com.macedonga.visor.gallery.here
 import java.util.Locale
 import com.macedonga.visor.notify.MirrorListener
@@ -157,6 +158,13 @@ class PhoneActions @Inject constructor(@ApplicationContext private val context: 
         val at = here(context, timeoutMs = 5_000) ?: return null
         val name = PlaceNames.of(context, at.latitude, at.longitude) ?: "%.2f, %.2f".format(Locale.ROOT, at.latitude, at.longitude)
         return Spot(name, at.latitude, at.longitude)
+    }
+
+    override fun notifications(app: String): String {
+        val listener = com.macedonga.visor.notify.MirrorListener.current
+        val read = listener?.recentNotices(app) ?: "Visor has no notification access, so it cannot read the notifications."
+        note("Notifications${if (app.isEmpty()) "" else " from $app"}: ${if (listener == null) "no listener" else "${read.lines().size} line(s), first: ${read.lineSequence().first().take(80)}"}")
+        return read
     }
 
     override fun nowPlaying(): NowPlaying {

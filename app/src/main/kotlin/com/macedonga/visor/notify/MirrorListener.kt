@@ -69,6 +69,7 @@ class MirrorListener : NotificationListenerService(), Messaging {
 
     override fun onListenerConnected() {
         assistant.messaging = this
+        current = this
         scope.launch { release() }
         val manager = getSystemService(MediaSessionManager::class.java)
         val me = ComponentName(this, MirrorListener::class.java)
@@ -88,6 +89,7 @@ class MirrorListener : NotificationListenerService(), Messaging {
 
     override fun onListenerDisconnected() {
         if (assistant.messaging === this) assistant.messaging = null
+        if (current === this) current = null
         sessions?.removeOnActiveSessionsChangedListener(onSessions)
         sessions = null
         setProvider(NO_ACCESS)
@@ -296,6 +298,10 @@ class MirrorListener : NotificationListenerService(), Messaging {
     }
 
     companion object {
+        /** The listener while Android has it connected, for reading the notifications out ([recentNotices]). */
+        @Volatile
+        var current: MirrorListener? = null
+
         private const val PROVIDER_MIRRORED = 8
         private const val PROVIDER_WHATSAPP = 2
         private const val WHATSAPP = "com.whatsapp"

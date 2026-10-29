@@ -129,6 +129,7 @@ class GlassesService : Service() {
             moveToLe()
             holdLe()
             com.macedonga.visor.gallery.notePlaces(this, scope, connection, media.places)
+            com.macedonga.visor.metaai.Greeting(this).keep(scope, connection)
             com.macedonga.visor.gallery.importOnItsOwn(this, scope, connection, media, importChoice)
             com.macedonga.visor.language.keepAssistantConfig(scope, connection, glassesConfig, media, glassesSettings, assistantConfig, log)
             developer.keep(scope)

@@ -110,6 +110,11 @@ fun AssistantSettingsScreen(open: (NavKey) -> Unit, model: AssistantViewModel = 
 
     var sheet by remember { mutableStateOf<String?>(null) }
     var switchTo by remember { mutableStateOf<String?>(null) }
+    val greeting = remember { com.macedonga.visor.metaai.Greeting(context) }
+    var greetOn by remember { mutableStateOf(greeting.on) }
+    var greetText by remember { mutableStateOf(greeting.text) }
+    var greetMinutes by remember { mutableStateOf(greeting.minutes) }
+    var greetSpeaking by remember { mutableStateOf(false) }
     var trial by remember { mutableStateOf("") }
     var trying by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
@@ -322,6 +327,31 @@ fun AssistantSettingsScreen(open: (NavKey) -> Unit, model: AssistantViewModel = 
                 )
             }
         }
+        item(key = "greeting") {
+            Column {
+                SectionLabel(stringResource(R.string.greet_section))
+                Rows(
+                    { ToggleRow(stringResource(R.string.greet_on), greetOn, { greeting.on = it; greetOn = it }, sub = stringResource(R.string.greet_on_sub)) },
+                    if (greetOn) row { ValueRow(stringResource(R.string.greet_text), greetText, onClick = { sheet = "greeting" }) } else null,
+                    if (greetOn) row {
+                        PillsRow(
+                            stringResource(R.string.greet_after),
+                            com.macedonga.visor.metaai.Greeting.MINUTE_CHOICES.map { it to stringResource(R.string.ai_minutes, it) },
+                            greetMinutes,
+                            onPick = { m -> greeting.minutes = m; greetMinutes = m },
+                        )
+                    } else null,
+                    if (greetOn) row {
+                        RowFrame(stringResource(R.string.greet_try), onClick = null, sub = stringResource(R.string.greet_try_sub), busy = greetSpeaking) {
+                            if (!greetSpeaking) ActionPill(stringResource(R.string.greet_hear), {
+                                greetSpeaking = true
+                                scope.launch { greeting.speak(greetText); greetSpeaking = false }
+                            }, modifier = Modifier.padding(start = 12.dp))
+                        }
+                    } else null,
+                )
+            }
+        }
         item(key = "places") {
             Column(Modifier.padding(top = 28.dp)) {
                 Rows(
@@ -366,6 +396,10 @@ fun AssistantSettingsScreen(open: (NavKey) -> Unit, model: AssistantViewModel = 
         "url" -> TextSheet(
             stringResource(R.string.ai_base_url), config.baseUrl, onSave = { url -> model.store.update { it.copy(baseUrl = url.trim()) } },
             onDismiss = { sheet = null }, keyboard = KeyboardType.Uri, valid = { it.startsWith("http") },
+        )
+        "greeting" -> TextSheet(
+            stringResource(R.string.greet_text), greetText, onSave = { t -> greeting.text = t; greetText = greeting.text },
+            onDismiss = { sheet = null },
         )
         "instructions" -> TextSheet(
             stringResource(R.string.ai_instructions), config.instructions, onSave = { text -> model.store.update { it.copy(instructions = text) } },
